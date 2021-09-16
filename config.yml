@@ -1,0 +1,16 @@
+# 禁止访问远程的ip地址，域名
+ips:
+- 127.0.0.1
+- 148.0.0.1
+
+domains:
+- www.baidu.com
+- hhh.com
+
+ports:
+- 80
+- 90
+  
+auth:
+  username: "proxy"
+  password: "proxy"
