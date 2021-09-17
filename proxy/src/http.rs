@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use std::io::{BufRead, Read};
+use std::io::{Read};
 use std::net::TcpStream;
 use std::str;
 
@@ -11,20 +11,20 @@ pub enum Method {
     GET,
     POST,
     HEAD,
+    CONNECT,
+    IVALIAD // 不支持的方法
 }
 
 impl Method {
     fn parse(method: &str) -> Result<Method, &str> {
-        if method == "GET" {
-            return Ok(Method::GET);
+        match method {
+          "GET" => Ok(Method::GET),
+          "POST" => Ok(Method::POST),
+          "HEAD" => Ok(Method::HEAD),
+          "CONNECT" => Ok(Method::CONNECT),
+          _ => Err("No such method")
         }
-        if method == "POST" {
-            return Ok(Method::POST);
-        }
-        if method == "HEAD" {
-            return Ok(Method::HEAD);
-        }
-        Err("No such method")
+        
     }
 
     fn to_string(&self) -> String {
@@ -32,6 +32,8 @@ impl Method {
             Self::GET => String::from("GET"),
             Self::POST => String::from("POST"),
             Self::HEAD => String::from("HEAD"),
+            Self::CONNECT => String::from("CONNECT"),
+            Self::IVALIAD => String::from("INVALID")
         }
     }
 }
@@ -110,7 +112,6 @@ enum State {
     Return1, // 只接收到一个\r
     Return2, // 连续接收到两个\r，或者\r\n\r
     End,     // 最后接收到两个\r\n\r\n或者\n\n的时候结束
-    Invalid, // 非法
 }
 
 #[derive(Debug, PartialEq, Eq)]
