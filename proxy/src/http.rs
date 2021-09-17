@@ -126,7 +126,36 @@ pub fn parse_response_header(line: &str) -> Result<ResponseLine, &str> {
     })
 }
 
-// 状态转移图 TODO
+// 状态转移图 
+//                         +----------+
+//                         |          |                    others
+//       +----------+----->|  invalid |<-----------------------------+
+//       |          |      |          |                              |
+//       |          |      +----------+                              |
+//       |     \r|\n|                                                |
+//       |          |                                                |
+//       |    +-----+-----+           +-----------+           +------+-----+
+//       |    |           |  others   |           |   \r      |            |
+//       |    |  init     +---------->|   more    +---------->|   Return1  |
+//       |    |           |           |           |           |            |
+//       |    +-----------+           +---^--+----+           +------+-----+
+//       |                                |  |                       |
+//       |                                |  |                       |
+// others|                          others|  | \n                    |
+//       |                                |  |                       |
+//       |                                |  |                       |
+//       |       +-----------+        +---+--v-----+                 |
+//       |       |           |   \n   |            |       \n        |
+//       |       |    End    |<-------+   NewLine  <-----------------+
+//       |       |           |        |            |
+//       |       +-----^-----+        +-----+------+
+//       |             |\n                  |
+//       |             |                    |
+//       |       +-----+-----+              |
+//       |       |           |       \r     |
+//       +-------+  Return2  |<-------------+
+//               |           |
+//               +-----------+
 #[derive(Debug, PartialEq, Eq)]
 enum State {
     Init,    // 最开始的状态
@@ -135,6 +164,7 @@ enum State {
     Return1, // 只接收到一个\r
     Return2, // 连续接收到两个\r，或者\r\n\r
     End,     // 最后接收到两个\r\n\r\n或者\n\n的时候结束
+    Invalid
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -147,7 +177,7 @@ enum CharType {
 fn transform(current: State, input: CharType) -> State {
     match current {
         State::Init => match input {
-            CharType::Return => State::Return1,
+            CharType::Return | CharType::NewLine => State::Invalid,
             _ => State::More,
         },
         State::More => match input {
@@ -157,7 +187,7 @@ fn transform(current: State, input: CharType) -> State {
         },
         State::Return1 => match input {
             CharType::NewLine => State::NewLine,
-            _ => State::More,
+            _ => State::Invalid,
         },
         State::NewLine => match input {
             CharType::Return => State::Return2,
@@ -166,7 +196,7 @@ fn transform(current: State, input: CharType) -> State {
         },
         State::Return2 => match input {
             CharType::NewLine => State::End,
-            _ => State::More,
+            _ => State::Invalid,
         },
         _ => State::More,
     }
@@ -304,6 +334,10 @@ pub fn parse(stream: &mut TcpStream) -> (HashMap<String, String>, Vec<u8>) {
         state = transform(state, to_char_type(buf[0]));
         if state == State::End {
             break;
+        }
+
+        if state == State::Invalid{
+          panic!("http content not fits the protocol definition");
         }
 
         // \r
