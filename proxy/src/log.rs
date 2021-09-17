@@ -1,1 +1,1 @@
-struct Log {}
+pub struct Log {}

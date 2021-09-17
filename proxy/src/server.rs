@@ -2,6 +2,7 @@ use crate::pool::ThreadPool;
 use std::error::Error;
 use std::net::TcpListener;
 use std::time::SystemTime;
+use time;
 
 const VERSION: &str = "1.0.0";
 
@@ -24,6 +25,7 @@ impl Server {
     pub fn new(host: &str, port: &str, pool_size: usize) -> Server {
         let l = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
         let pool = ThreadPool::new(pool_size);
+
         Server {
             listener: l,
             count: 0,
@@ -39,7 +41,7 @@ impl Server {
     // 2. 开启线程池，进行http响应的处理
     // 3. 返回
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("server start to run");
+        println!("{:?}: server start to run", SystemTime::now());
 
         for stream in self.listener.incoming() {
             match stream {

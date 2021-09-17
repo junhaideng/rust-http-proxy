@@ -1,9 +1,11 @@
-use std::io::Read;
-use std::net::{Shutdown, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
 
+use crate::filter::filter_response;
 use crate::http;
+use std::io::{Read, Write};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 pub enum Message {
     NewStream(TcpStream),
@@ -65,10 +67,11 @@ impl Worker {
                 Message::NewStream(mut stream) => {
                     println!("worker {} recv stream", id);
 
-                    // 读取内容
-                    let req = http::parse(&mut stream);
-                    println!("{:?}", req);
-                    stream.shutdown(Shutdown::Both);
+                    // 处理http请求流数据
+                    Self::handle_stream(&mut stream);
+                    stream
+                        .shutdown(Shutdown::Both)
+                        .expect("shutdown stream failed");
                 }
                 // 结束
                 Message::Terminal => {
@@ -83,28 +86,74 @@ impl Worker {
         }
     }
 
-    fn handle_stream(mut stream: &TcpStream) {
-        // let mut content = String::new();
-        // 读取内容
-        let mut buf = [0; 1024];
-        loop {
-            match stream.read(&mut buf) {
-                Ok(size) => {
-                    if size == 0 {
-                        println!("read 0 bytes, stop to read");
-                        stream.shutdown(Shutdown::Both).unwrap();
-                        break;
-                    }
-                    // content += str::from_utf8(&buf[..size]).unwrap();
+    fn handle_stream(stream: &mut TcpStream) {
+        // 读取内容，解析协议
+        let mut req = http::parse_request(stream);
+        println!("{:?}", req);
+
+        // 找到host
+        let mut host = req.headers.get("Host").expect("No host specified").clone();
+        if host.contains("443") || req.path.contains("https") {
+            stream.shutdown(Shutdown::Both);
+            println!("not support https");
+            return;
+        }
+        if !host.contains(":") {
+            host = host + ":80";
+        }
+        let mut client = None;
+
+        let mut socket_addrs = match host.to_socket_addrs() {
+            Ok(addrs) => addrs,
+            Err(e) => {
+                println!("to socket addrs failed, host: {}", &host);
+                println!("{:?}", "httpbin.org:80".to_socket_addrs().unwrap());
+                return;
+            }
+        };
+
+        // 遍历一遍找到一个可行的socket
+        for addr in socket_addrs {
+            match TcpStream::connect_timeout(&addr, Duration::from_secs(4)) {
+                Ok(mut stream) => {
+                    client = Some(stream);
+                    break;
                 }
-                Err(e) => {
-                    eprintln!("failed: {}", e);
-                }
+                Err(_) => continue,
             };
         }
 
-        // let first_line = content.lines().next().unwrap();
-        // let request_header = http::parse_requst_header(first_line).unwrap();
-        // println!("request header: {:?}", request_header);
+        // 连接到目的服务器失败
+        if client.is_none() {
+            eprintln!("Connect to server failed");
+            return;
+        }
+
+        let mut client = client.unwrap();
+        client
+            .write(&req.as_bytes())
+            .expect("send http request failed");
+        println!("resq: {}", String::from_utf8(req.as_bytes()).unwrap());
+           
+        client.flush().expect("flush data failed");
+
+        let mut res = http::parse_response(&mut client);
+
+        if filter_response(&res) {
+            println!("filter true");
+        } else {
+            println!("filter false, 全部数据返回");
+            stream.write(&res.as_bytes()).unwrap();
+            stream.flush().unwrap();
+        }
+
+        // TODO 进行过滤
+        println!("\nres: {:?}",res); 
+        println!("body: {:?}\n", String::from_utf8_lossy(&res.body));
     }
+
+    // fn dial_server(host: &str) {
+    //   let client = TcpStream::connect_timeout(&host.parse().unwrap(), Duration::from_secs(10)).expect("Connect failed");
+    //   client.wri
+    // }
 }

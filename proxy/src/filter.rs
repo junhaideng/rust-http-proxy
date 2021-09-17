@@ -1,18 +1,25 @@
 use crate::config::Config;
-use hyper::HeaderMap;
+use crate::http;
+
+lazy_static! {
+    static ref cfg: Config = Config::parse("config.yml").unwrap();
+}
 
 // 进行过滤
-pub fn filter(_config: &Config, header: &HeaderMap) -> bool {
-    for (key, value) in header.iter() {
-        println!("key: {}, value: {:?}", key, value);
+pub fn filter_response(response: &http::Response) -> bool {
+    // check content-type
+    let headers = &response.headers;
+    let content_type = headers.get("Content-Type").unwrap();
+
+    //
+    for typ in &cfg.content_type {
+        if content_type.contains(typ) {
+            return true;
+        }
     }
 
     false
 }
 
 #[test]
-fn filter_test() {
-    let map = HeaderMap::new();
-    // map.insert("key", HeaderValue::from_static("hello"));
-    filter(&Config::generate_default().unwrap(), &map);
-}
+fn filter_test() {}

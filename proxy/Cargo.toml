@@ -8,6 +8,8 @@ edition = "2018"
 [dependencies]
 hyper = "0.14.11"
 iptables = "0.4.3"
+lazy_static = "1.4.0"
 serde = { version = "1.0.130", features = ["derive"]}
 serde_yaml = "0.8.21"
+time = "0.3.2"
 tokio = "1.10.0"

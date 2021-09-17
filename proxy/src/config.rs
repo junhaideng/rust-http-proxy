@@ -8,10 +8,11 @@ const FILENAME: &str = "config.yml";
 // 配置文件内容
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    ips: Vec<String>,
-    domains: Vec<String>,
-    ports: Vec<String>,
-    auth: Auth,
+    pub ips: Vec<String>,
+    pub domains: Vec<String>,
+    pub ports: Vec<String>,
+    pub auth: Auth,
+    pub content_type: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,6 +43,7 @@ impl Config {
                 username: String::from("admin"),
                 password: String::from("admin"),
             },
+            content_type: vec![],
         };
 
         // 结构体转换成对应的字符串

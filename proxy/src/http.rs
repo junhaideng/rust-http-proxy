@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use std::io::{Read};
+use std::io::Read;
 use std::net::TcpStream;
 use std::str;
 
@@ -12,19 +12,18 @@ pub enum Method {
     POST,
     HEAD,
     CONNECT,
-    IVALIAD // 不支持的方法
+    IVALIAD, // 不支持的方法
 }
 
 impl Method {
     fn parse(method: &str) -> Result<Method, &str> {
         match method {
-          "GET" => Ok(Method::GET),
-          "POST" => Ok(Method::POST),
-          "HEAD" => Ok(Method::HEAD),
-          "CONNECT" => Ok(Method::CONNECT),
-          _ => Err("No such method")
+            "GET" => Ok(Method::GET),
+            "POST" => Ok(Method::POST),
+            "HEAD" => Ok(Method::HEAD),
+            "CONNECT" => Ok(Method::CONNECT),
+            _ => Err("No such method"),
         }
-        
     }
 
     fn to_string(&self) -> String {
@@ -33,7 +32,7 @@ impl Method {
             Self::POST => String::from("POST"),
             Self::HEAD => String::from("HEAD"),
             Self::CONNECT => String::from("CONNECT"),
-            Self::IVALIAD => String::from("INVALID")
+            Self::IVALIAD => String::from("INVALID"),
         }
     }
 }
@@ -88,7 +87,7 @@ pub struct RequestLine {
 }
 
 // 请求行解析, 比如GET /hello HTTP/1.1
-pub fn parse_requst_header(line: &str) -> Result<RequestLine, &str> {
+fn parse_requst_header(line: &str) -> Result<RequestLine, &str> {
     let line: Vec<_> = line.split(' ').collect();
     if line.len() != 3 {
         return Err("Request line is not correct");
@@ -100,6 +99,30 @@ pub fn parse_requst_header(line: &str) -> Result<RequestLine, &str> {
         method: method,
         path: path.to_string(),
         version: version,
+    })
+}
+
+#[derive(Debug)]
+pub struct ResponseLine {
+    pub version: HttpVersion,
+    pub code: u16,
+    pub text: String,
+}
+
+pub fn parse_response_header(line: &str) -> Result<ResponseLine, &str> {
+    let line: Vec<_> = line.splitn(3, ' ').collect();
+    if line.len() != 3 {
+        return Err("Response line is not correct");
+    }
+    let version = HttpVersion::parse(line[0])?;
+
+    let code = line[1].parse().unwrap();
+
+    let text = line[2];
+    Ok(ResponseLine {
+        version: version,
+        code: code,
+        text: text.to_string(),
     })
 }
 
@@ -175,43 +198,102 @@ fn split_key_value(line: Vec<u8>) -> Result<(String, String), &'static str> {
 
 #[derive(Debug)]
 pub struct Request {
-    method: Method,
-    path: String,
-    version: HttpVersion,
-    headers: HashMap<String, String>,
-    body: Vec<u8>,
+    pub method: Method,
+    pub path: String,
+    pub version: HttpVersion,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+impl Request {
+  pub fn as_bytes(&mut self) -> Vec<u8>{
+    let  ret = '\r' as u8;
+    let newline = '\n' as u8;
+    let  colon = ':' as u8;
+    let  space= ' ' as u8;
+    let mut buf = Vec::new();
+    // method
+    buf.append(&mut self.method.to_string().as_bytes().to_vec());
+    buf.push(space);
+    // path 
+    buf.append(&mut self.path.as_bytes().to_vec());
+    buf.push(space);
+    // version 
+    buf.append(&mut self.version.to_string().as_bytes().to_vec());
+    buf.push(ret);
+    buf.push(newline);
+
+    // headers 
+    for (key, value) in &self.headers{
+      buf.append(&mut key.as_bytes().to_vec());
+      buf.push(colon);
+      buf.push(space);
+      buf.append(&mut value.as_bytes().to_vec());
+      buf.push(ret);
+      buf.push(newline);
+    }
+    buf.push(ret);
+    buf.push(newline);
+
+    buf.append(&mut self.body);
+    buf
+  }
+}
+
+
+#[derive(Debug)]
+pub struct Response {
+    pub version: HttpVersion,
+    pub code: u16,
+    pub text: String,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+impl Response {
+  pub fn as_bytes(&mut self) -> Vec<u8>{
+    let  ret = '\r' as u8;
+    let newline = '\n' as u8;
+    let  colon = ':' as u8;
+    let  space= ' ' as u8;
+    let mut buf = Vec::new();
+    // version 
+    buf.append(&mut self.version.to_string().as_bytes().to_vec());
+    buf.push(space);
+
+    // method
+    buf.append(&mut self.code.to_string().as_bytes().to_vec());
+    buf.push(space);
+    // text 
+    buf.append(&mut self.text.as_bytes().to_vec());
+    buf.push(space);
+    // text 
+    buf.push(ret);
+    buf.push(newline);
+
+    // headers 
+    for (key, value) in &self.headers{
+      buf.append(&mut key.as_bytes().to_vec());
+      buf.push(colon);
+      buf.push(space);
+      buf.append(&mut value.as_bytes().to_vec());
+      buf.push(ret);
+      buf.push(newline);
+    }
+    buf.push(ret);
+    buf.push(newline);
+    buf.append(&mut self.body);
+    buf
+  }
 }
 
 // 解析http协议内容
-pub fn parse(stream: &mut TcpStream) -> Request {
+pub fn parse(stream: &mut TcpStream) -> (HashMap<String, String>, Vec<u8>) {
     // 每次读取一个字节
     let mut buf = [0; 1];
-    // 保存每一行的内容，会重复利用
-    // 当为body的时候会保存所有的内容，可能会有多行
+
     let mut writer = Vec::new();
-
-    // 首先读取一行数据，里面是请求行或者响应行
-    loop {
-        let size = stream.read(&mut buf).unwrap();
-        if size == 0 {
-            break;
-        }
-        // 10 -> \n
-        if buf[0] == 10 {
-            break;
-        }
-
-        // 13 -> \r
-        if buf[0] == 13 {
-            continue;
-        }
-        writer.push(buf[0]);
-    }
-
-    let request_header = parse_requst_header(str::from_utf8(&writer.clone()).unwrap()).unwrap();
-
     let mut state = State::Init;
-    writer.clear();
 
     let mut header = HashMap::new();
 
@@ -254,10 +336,80 @@ pub fn parse(stream: &mut TcpStream) -> Request {
             .expect("body is less than Content-Length");
     }
 
+    (header, body)
+}
+
+pub fn parse_request(stream: &mut TcpStream) -> Request {
+    // 每次读取一个字节
+    let mut buf = [0; 1];
+    // 保存每一行的内容，会重复利用
+    // 当为body的时候会保存所有的内容，可能会有多行
+    let mut writer = Vec::new();
+
+    // 首先读取一行数据，里面是请求行或者响应行
+    loop {
+        let size = stream.read(&mut buf).unwrap();
+        if size == 0 {
+            break;
+        }
+        // 10 -> \n
+        if buf[0] == 10 {
+            break;
+        }
+
+        // 13 -> \r
+        if buf[0] == 13 {
+            continue;
+        }
+        writer.push(buf[0]);
+    }
+
+    let request_header = parse_requst_header(str::from_utf8(&writer.clone()).unwrap()).unwrap();
+
+    let (header, body) = parse(stream);
+
     Request {
         method: request_header.method,
         path: request_header.path,
         version: request_header.version,
+        headers: header,
+        body: body,
+    }
+}
+
+pub fn parse_response(stream: &mut TcpStream) -> Response {
+    // 每次读取一个字节
+    let mut buf = [0; 1];
+    // 保存每一行的内容，会重复利用
+    // 当为body的时候会保存所有的内容，可能会有多行
+    let mut writer = Vec::new();
+
+    // 首先读取一行数据，里面是请求行或者响应行
+    loop {
+        let size = stream.read(&mut buf).unwrap();
+        if size == 0 {
+            break;
+        }
+        // 10 -> \n
+        if buf[0] == 10 {
+            break;
+        }
+
+        // 13 -> \r
+        if buf[0] == 13 {
+            continue;
+        }
+        writer.push(buf[0]);
+    }
+
+    let response_header = parse_response_header(str::from_utf8(&writer.clone()).unwrap()).unwrap();
+
+    let (header, body) = parse(stream);
+
+    Response {
+        version: response_header.version,
+        code: response_header.code,
+        text: response_header.text,
         headers: header,
         body: body,
     }
