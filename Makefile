@@ -3,3 +3,6 @@ test:
 
 build:
 	cargo build --release
+
+fmt: 
+	cargo fix --allow-dirty && cargo fmt && cd proxy && cargo fix --allow-dirty && cargo fmt && cd ..

@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::http;
 
 lazy_static! {
-    static ref cfg: Config = Config::parse("config.yml").unwrap();
+    static ref CFG: Config = Config::parse("config.yml").unwrap();
 }
 
 // 进行过滤
@@ -12,7 +12,7 @@ pub fn filter_response(response: &http::Response) -> bool {
     let content_type = headers.get("Content-Type").unwrap();
 
     //
-    for typ in &cfg.content_type {
+    for typ in &CFG.content_type {
         if content_type.contains(typ) {
             return true;
         }

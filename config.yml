@@ -14,3 +14,7 @@ ports:
 auth:
   username: "proxy"
   password: "proxy"
+
+content_type:
+  - pdf
+  - word

@@ -1,3 +1,5 @@
+//！ config.rs 负责配置文件的相关操作，主要为读取配置文件和生成默认配置
+
 use serde::{Deserialize, Serialize};
 use serde_yaml;
 use std::error::Error;
@@ -5,7 +7,7 @@ use std::fs::{self, File};
 
 const FILENAME: &str = "config.yml";
 
-// 配置文件内容
+/// 配置文件内容
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub ips: Vec<String>,
@@ -15,14 +17,15 @@ pub struct Config {
     pub content_type: Vec<String>,
 }
 
+/// 代理验证需要的用户名和密码
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Auth {
-    username: String,
-    password: String,
+    pub username: String,
+    pub password: String,
 }
 
 impl Config {
-    // 从配置文件中读取内容
+    /// 从配置文件中读取内容
     pub fn parse(filepath: &str) -> Result<Config, &str> {
         let f = match File::open(filepath) {
             Ok(f) => f,
@@ -32,7 +35,7 @@ impl Config {
         return Ok(config);
     }
 
-    // 生产默认的配置文件
+    /// 生成默认的配置文件
     pub fn generate_default() -> Result<Config, Box<dyn Error>> {
         // 默认配置
         let default_config: Config = Config {

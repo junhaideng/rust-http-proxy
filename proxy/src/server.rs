@@ -2,10 +2,10 @@ use crate::pool::ThreadPool;
 use std::error::Error;
 use std::net::TcpListener;
 use std::time::SystemTime;
-use time;
 
 const VERSION: &str = "1.0.0";
 
+/// 代理服务器
 pub struct Server {
     // 监听socket
     listener: TcpListener,
@@ -22,6 +22,9 @@ pub struct Server {
 }
 
 impl Server {
+    /// 创建一个新的 Server
+    ///
+    /// 可以指定对应的地址，端口，线程池大小
     pub fn new(host: &str, port: &str, pool_size: usize) -> Server {
         let l = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
         let pool = ThreadPool::new(pool_size);
