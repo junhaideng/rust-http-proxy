@@ -206,40 +206,39 @@ pub struct Request {
 }
 
 impl Request {
-  pub fn as_bytes(&mut self) -> Vec<u8>{
-    let  ret = '\r' as u8;
-    let newline = '\n' as u8;
-    let  colon = ':' as u8;
-    let  space= ' ' as u8;
-    let mut buf = Vec::new();
-    // method
-    buf.append(&mut self.method.to_string().as_bytes().to_vec());
-    buf.push(space);
-    // path 
-    buf.append(&mut self.path.as_bytes().to_vec());
-    buf.push(space);
-    // version 
-    buf.append(&mut self.version.to_string().as_bytes().to_vec());
-    buf.push(ret);
-    buf.push(newline);
+    pub fn as_bytes(&mut self) -> Vec<u8> {
+        let ret = '\r' as u8;
+        let newline = '\n' as u8;
+        let colon = ':' as u8;
+        let space = ' ' as u8;
+        let mut buf = Vec::new();
+        // method
+        buf.append(&mut self.method.to_string().as_bytes().to_vec());
+        buf.push(space);
+        // path
+        buf.append(&mut self.path.as_bytes().to_vec());
+        buf.push(space);
+        // version
+        buf.append(&mut self.version.to_string().as_bytes().to_vec());
+        buf.push(ret);
+        buf.push(newline);
 
-    // headers 
-    for (key, value) in &self.headers{
-      buf.append(&mut key.as_bytes().to_vec());
-      buf.push(colon);
-      buf.push(space);
-      buf.append(&mut value.as_bytes().to_vec());
-      buf.push(ret);
-      buf.push(newline);
+        // headers
+        for (key, value) in &self.headers {
+            buf.append(&mut key.as_bytes().to_vec());
+            buf.push(colon);
+            buf.push(space);
+            buf.append(&mut value.as_bytes().to_vec());
+            buf.push(ret);
+            buf.push(newline);
+        }
+        buf.push(ret);
+        buf.push(newline);
+
+        buf.append(&mut self.body);
+        buf
     }
-    buf.push(ret);
-    buf.push(newline);
-
-    buf.append(&mut self.body);
-    buf
-  }
 }
-
 
 #[derive(Debug)]
 pub struct Response {
@@ -251,40 +250,40 @@ pub struct Response {
 }
 
 impl Response {
-  pub fn as_bytes(&mut self) -> Vec<u8>{
-    let  ret = '\r' as u8;
-    let newline = '\n' as u8;
-    let  colon = ':' as u8;
-    let  space= ' ' as u8;
-    let mut buf = Vec::new();
-    // version 
-    buf.append(&mut self.version.to_string().as_bytes().to_vec());
-    buf.push(space);
+    pub fn as_bytes(&mut self) -> Vec<u8> {
+        let ret = '\r' as u8;
+        let newline = '\n' as u8;
+        let colon = ':' as u8;
+        let space = ' ' as u8;
+        let mut buf = Vec::new();
+        // version
+        buf.append(&mut self.version.to_string().as_bytes().to_vec());
+        buf.push(space);
 
-    // method
-    buf.append(&mut self.code.to_string().as_bytes().to_vec());
-    buf.push(space);
-    // text 
-    buf.append(&mut self.text.as_bytes().to_vec());
-    buf.push(space);
-    // text 
-    buf.push(ret);
-    buf.push(newline);
+        // method
+        buf.append(&mut self.code.to_string().as_bytes().to_vec());
+        buf.push(space);
+        // text
+        buf.append(&mut self.text.as_bytes().to_vec());
+        buf.push(space);
+        // text
+        buf.push(ret);
+        buf.push(newline);
 
-    // headers 
-    for (key, value) in &self.headers{
-      buf.append(&mut key.as_bytes().to_vec());
-      buf.push(colon);
-      buf.push(space);
-      buf.append(&mut value.as_bytes().to_vec());
-      buf.push(ret);
-      buf.push(newline);
+        // headers
+        for (key, value) in &self.headers {
+            buf.append(&mut key.as_bytes().to_vec());
+            buf.push(colon);
+            buf.push(space);
+            buf.append(&mut value.as_bytes().to_vec());
+            buf.push(ret);
+            buf.push(newline);
+        }
+        buf.push(ret);
+        buf.push(newline);
+        buf.append(&mut self.body);
+        buf
     }
-    buf.push(ret);
-    buf.push(newline);
-    buf.append(&mut self.body);
-    buf
-  }
 }
 
 // 解析http协议内容

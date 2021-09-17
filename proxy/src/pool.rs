@@ -134,7 +134,7 @@ impl Worker {
             .write(&req.as_bytes())
             .expect("send http request failed");
         println!("resq: {}", String::from_utf8(req.as_bytes()).unwrap());
-           
+
         client.flush().expect("flush data failed");
 
         let mut res = http::parse_response(&mut client);
@@ -148,7 +148,7 @@ impl Worker {
         }
 
         // TODO 进行过滤
-        println!("\nres: {:?}",res); 
+        println!("\nres: {:?}", res);
         println!("body: {:?}\n", String::from_utf8_lossy(&res.body));
     }
 
