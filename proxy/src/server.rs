@@ -1,16 +1,20 @@
+use crate::banner;
 use crate::config::Config;
 use crate::filter::{FilterRequest, FilterResponse};
+use crate::iptables::init as init_iptables;
 use crate::pool::ThreadPool;
+
+use super::log::init as init_log;
+use log::{error, info};
 use std::error::Error;
 use std::net::TcpListener;
 use std::time::SystemTime;
-use std::vec;
 
 lazy_static! {
     static ref CFG: Config = Config::parse("config.yml").unwrap();
 }
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "v1.0.0";
 
 /// 代理服务器
 pub struct Server {
@@ -28,8 +32,6 @@ pub struct Server {
     pool: ThreadPool,
     // 线程池大小
     pool_size: usize,
-    request_filter_chain: Vec<FilterRequest>,
-    response_filter_chain: Vec<FilterResponse>,
 }
 
 impl Server {
@@ -37,6 +39,10 @@ impl Server {
     ///
     /// 可以指定对应的地址，端口，线程池大小
     pub fn new(host: &str, port: &str, pool_size: usize) -> Server {
+        // 初始化日志
+        init_log();
+        init_iptables(port).unwrap();
+
         let l = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
         let pool = ThreadPool::new(pool_size);
 
@@ -49,8 +55,6 @@ impl Server {
             reject: 0,
             pool: pool,
             pool_size: pool_size,
-            request_filter_chain: vec![],
-            response_filter_chain: vec![],
         }
     }
 
@@ -59,12 +63,14 @@ impl Server {
     // 2. 开启线程池，进行http响应的处理
     // 3. 返回
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("run server on {}:{}", self.host, self.port);
+        banner::print(VERSION);
+        info!("run server on {}:{}", self.host, self.port);
+        // Iptable::init(&self.port).unwrap();
 
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    self.count += 1; 
+                    self.count += 1;
                     println!("get connection stream");
                     self.pool.execute(stream).expect("execute failed");
                 }
@@ -76,11 +82,11 @@ impl Server {
 
     // 添加请求过滤器
     pub fn add_request_filter(&mut self, f: FilterRequest) {
-      self.request_filter_chain.push(f);
+        self.pool.request_filter_chain.push(f);
     }
 
     // 添加响应过滤器
-    pub fn add_response_filter(&mut self, f: FilterResponse){
-      self.response_filter_chain.push(f);
+    pub fn add_response_filter(&mut self, f: FilterResponse) {
+        self.pool.response_filter_chain.push(f);
     }
 }

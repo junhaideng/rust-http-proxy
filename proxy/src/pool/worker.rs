@@ -1,77 +1,20 @@
-use std::net::{Shutdown, TcpStream, ToSocketAddrs};
-
+use super::message::Message;
 use crate::{http, utils};
 use std::io::Write;
+use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-/// 消息传递
-///
-/// 程序退出的时候会发送 Terminal 消息，线程池中的线程一个一个进行关闭
-pub enum Message {
-    NewStream(TcpStream),
-    Terminal,
-}
-
-/// 线程池
-///
-/// 负责 HTTP 请求的代理服务，不是通用的线程池
 #[derive(Debug)]
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Message>,
-}
-
-impl ThreadPool {
-    /// 创建一个线程池
-    ///
-    /// 1. 创建通道进行数据的传输
-    /// 2. 创建 worker 从通道中获取数据进行处理
-    pub fn new(size: usize) -> ThreadPool {
-        // size 一定要大于0
-        assert!(size > 0);
-        let (sender, receiver) = mpsc::channel();
-        let receiver = Arc::new(Mutex::new(receiver));
-
-        let mut workers = Vec::with_capacity(size);
-
-        // 创建 worker
-        for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver)));
-        }
-
-        ThreadPool { workers, sender }
-    }
-
-    /// 将 stream 发送给 worker 进行处理
-    pub fn execute(&self, stream: TcpStream) -> Result<(), mpsc::SendError<Message>> {
-        self.sender.send(Message::NewStream(stream))?;
-        Ok(())
-    }
-}
-
-// 线程池的销毁
-impl Drop for ThreadPool {
-    fn drop(&mut self) {
-        for worker in &mut self.workers {
-            println!("shutdowing worker {}", worker.id);
-            if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>,
+pub struct Worker {
+    pub id: usize,
+    pub thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
     // 创建 worker 接收数据进行处理
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
+    pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
         let thread = thread::spawn(move || loop {
             let message = receiver.lock().unwrap().recv().unwrap();
 
@@ -86,7 +29,7 @@ impl Worker {
                         .expect("shutdown stream failed");
                 }
                 // 结束
-                Message::Terminal => {
+                Message::Terminate => {
                     break;
                 }
             }
@@ -108,7 +51,7 @@ impl Worker {
         let mut host = req.headers.get("Host").expect("No host specified").clone();
         // 目前不支持HTTPS
         if host.contains("443") || req.path.contains("https") {
-            stream.shutdown(Shutdown::Both);
+            stream.shutdown(Shutdown::Both).unwrap();
             println!("not support https");
             return;
         }

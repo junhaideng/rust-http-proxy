@@ -1,7 +1,7 @@
 //! 请求方法过滤
 
-use crate::{Config, http};
 use super::FilterStatus;
+use crate::{http, Config};
 
 pub fn filter_request_method(config: &Config, request: &http::Request) -> FilterStatus {
     let methods = &config.deny.request.line.methods;

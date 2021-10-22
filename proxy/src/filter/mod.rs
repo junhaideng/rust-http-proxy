@@ -1,6 +1,6 @@
 pub mod header;
 pub mod method;
-pub mod path; 
+pub mod path;
 use crate::config::Config;
 use crate::http;
 

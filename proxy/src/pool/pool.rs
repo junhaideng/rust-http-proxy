@@ -1,0 +1,70 @@
+use crate::filter::{FilterRequest, FilterResponse};
+
+use super::message::Message;
+use super::worker::Worker;
+use std::net::TcpStream;
+use std::sync::{mpsc, Arc, Mutex};
+
+/// 线程池
+///
+/// 负责 HTTP 请求的代理服务，不是通用的线程池
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Message>,
+    pub request_filter_chain: Vec<FilterRequest>,
+    pub response_filter_chain: Vec<FilterResponse>,
+}
+
+impl ThreadPool {
+    /// 创建一个线程池
+    ///
+    /// 1. 创建通道进行数据的传输
+    /// 2. 创建 worker 从通道中获取数据进行处理
+    pub fn new(size: usize) -> ThreadPool {
+        // size 一定要大于0
+        assert!(size > 0);
+        let (sender, receiver) = mpsc::channel();
+        let receiver = Arc::new(Mutex::new(receiver));
+
+        let mut workers = Vec::with_capacity(size);
+
+        // 创建 worker
+        for id in 0..size {
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
+        }
+
+        ThreadPool {
+            workers: workers,
+            sender: sender,
+            request_filter_chain: vec![],
+            response_filter_chain: vec![],
+        }
+    }
+
+    /// 将 stream 发送给 worker 进行处理
+    pub fn execute(&self, stream: TcpStream) -> Result<(), mpsc::SendError<Message>> {
+        self.sender.send(Message::NewStream(stream))?;
+        Ok(())
+    }
+}
+
+// 线程池的销毁
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        println!("Sending terminate message to all workers.");
+
+        for _ in &mut self.workers {
+            self.sender.send(Message::Terminate).unwrap();
+        }
+
+        println!("Shutting down all workers.");
+
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+}
