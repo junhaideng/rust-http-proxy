@@ -1,6 +1,5 @@
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 
-use crate::filter::filter_response;
 use crate::{http, utils};
 use std::io::Write;
 use std::sync::{mpsc, Arc, Mutex};
@@ -18,6 +17,7 @@ pub enum Message {
 /// 线程池
 ///
 /// 负责 HTTP 请求的代理服务，不是通用的线程池
+#[derive(Debug)]
 pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Message>,
@@ -63,6 +63,7 @@ impl Drop for ThreadPool {
     }
 }
 
+#[derive(Debug)]
 struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
@@ -169,14 +170,14 @@ impl Worker {
         // 解析收到的 HTTP 响应
         let mut res = http::parse_response(&mut client);
 
-        if filter_response(&res) {
-            // TODO： 应该被过滤掉
-            println!("filter true");
-        } else {
-            println!("filter false, 全部数据返回");
-            stream.write(&res.as_bytes()).unwrap();
-            stream.flush().unwrap();
-        }
+        // if filter_response(&res) {
+        //     // TODO： 应该被过滤掉
+        //     println!("filter true");
+        // } else {
+        //     println!("filter false, 全部数据返回");
+        stream.write(&res.as_bytes()).unwrap();
+        stream.flush().unwrap();
+        // }
         println!("\nres: {:?}", res);
         println!("body: {:?}\n", String::from_utf8_lossy(&res.body));
     }

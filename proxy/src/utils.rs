@@ -14,12 +14,14 @@ pub fn decode(string: &String) -> Result<(String, String), &str> {
 
 #[test]
 fn decode_test() {
-    let username = "usersname";
-    let passwd = "password";
-    let encode_msg = "dXNlcm5hbWU6cGFzc3dvcmQ=".to_string();
+    let username = "username".to_string();
+    let passwd = "password".to_string();
+    let encode_msg = "dXNlcm5hbWU6cGFzc3dvcmQ".to_string();
 
     let result = decode(&encode_msg);
     assert!(result.is_ok());
     let (u, p) = result.unwrap();
-    assert!(u.eq(username) && p.eq(passwd));
+    println!("{}, {}", u, p);
+    assert_eq!(u, username);
+    assert!(u.eq(&username) && p.eq(&passwd));
 }

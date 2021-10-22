@@ -10,18 +10,57 @@ const FILENAME: &str = "config.yml";
 /// 配置文件内容
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    pub ips: Vec<String>,
-    pub domains: Vec<String>,
-    pub ports: Vec<String>,
+    pub server: Server,
+    pub deny: DenyConfig,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct Server {
+    pub port: String,
+    pub host: String,
+    pub pool: PoolConfig,
     pub auth: Auth,
-    pub content_type: Vec<String>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct PoolConfig {
+    size: usize,
 }
 
 /// 代理验证需要的用户名和密码
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct Auth {
     pub username: String,
     pub password: String,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct DenyConfig {
+    pub request: RequestDeny,
+    pub response: ResponseDeny,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct RequestDeny {
+    pub line: RequestLine,
+    pub headers: Vec<Header>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct RequestLine {
+    pub methods: Vec<String>,
+    pub path: Vec<String>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct Header {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct ResponseDeny {
+    pub headers: Vec<Header>,
 }
 
 impl Config {
@@ -39,14 +78,18 @@ impl Config {
     pub fn generate_default() -> Result<Config, Box<dyn Error>> {
         // 默认配置
         let default_config: Config = Config {
-            ips: vec![],
-            domains: vec![],
-            ports: vec![],
-            auth: Auth {
-                username: String::from("admin"),
-                password: String::from("admin"),
+            server: Server {
+                port: "8080".to_string(),
+                host: "0.0.0.0".to_string(),
+                pool: PoolConfig { size: 100 },
+                auth: Auth {
+                    username: "".to_string(),
+                    password: "".to_string(),
+                },
             },
-            content_type: vec![],
+            deny: DenyConfig {
+                ..DenyConfig::default()
+            },
         };
 
         // 结构体转换成对应的字符串
@@ -66,6 +109,8 @@ impl Default for Config {
 
 #[test]
 fn parse_config_test() {
+    let config = Config::parse("config.yml").unwrap();
+    println!("{:?}", config);
     assert_eq!(Config::parse("config.yml").is_ok(), true);
 
     assert_eq!(Config::parse("not_exist.yml").is_err(), true);

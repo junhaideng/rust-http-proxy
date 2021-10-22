@@ -1,12 +1,21 @@
+use crate::config::Config;
+use crate::filter::{FilterRequest, FilterResponse};
 use crate::pool::ThreadPool;
 use std::error::Error;
 use std::net::TcpListener;
 use std::time::SystemTime;
+use std::vec;
+
+lazy_static! {
+    static ref CFG: Config = Config::parse("config.yml").unwrap();
+}
 
 const VERSION: &str = "1.0.0";
 
 /// 代理服务器
 pub struct Server {
+    port: String,
+    host: String,
     // 监听socket
     listener: TcpListener,
     // 多少个链接
@@ -19,6 +28,8 @@ pub struct Server {
     pool: ThreadPool,
     // 线程池大小
     pool_size: usize,
+    request_filter_chain: Vec<FilterRequest>,
+    response_filter_chain: Vec<FilterResponse>,
 }
 
 impl Server {
@@ -30,12 +41,16 @@ impl Server {
         let pool = ThreadPool::new(pool_size);
 
         Server {
+            host: host.to_string(),
+            port: port.to_string(),
             listener: l,
             count: 0,
             start: SystemTime::now(),
             reject: 0,
             pool: pool,
             pool_size: pool_size,
+            request_filter_chain: vec![],
+            response_filter_chain: vec![],
         }
     }
 
@@ -44,11 +59,12 @@ impl Server {
     // 2. 开启线程池，进行http响应的处理
     // 3. 返回
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("{:?}: server start to run", SystemTime::now());
+        println!("run server on {}:{}", self.host, self.port);
 
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
+                    self.count += 1; 
                     println!("get connection stream");
                     self.pool.execute(stream).expect("execute failed");
                 }
@@ -56,5 +72,15 @@ impl Server {
             }
         }
         Ok(())
+    }
+
+    // 添加请求过滤器
+    pub fn add_request_filter(&mut self, f: FilterRequest) {
+      self.request_filter_chain.push(f);
+    }
+
+    // 添加响应过滤器
+    pub fn add_response_filter(&mut self, f: FilterResponse){
+      self.response_filter_chain.push(f);
     }
 }
