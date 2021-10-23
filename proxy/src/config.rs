@@ -1,9 +1,10 @@
 //！ config.rs 负责配置文件的相关操作，主要为读取配置文件和生成默认配置
 
-use serde::{Deserialize, Serialize};
-use serde_yaml;
 use std::error::Error;
 use std::fs::{self, File};
+
+use serde::{Deserialize, Serialize};
+use serde_yaml;
 
 const FILENAME: &str = "config.yml";
 
@@ -109,9 +110,9 @@ impl Default for Config {
 
 #[test]
 fn parse_config_test() {
-    let config = Config::parse("config.yml").unwrap();
+    let config = Config::parse("../config.yml").unwrap();
     println!("{:?}", config);
-    assert_eq!(Config::parse("config.yml").is_ok(), true);
+    assert_eq!(Config::parse("../config.yml").is_ok(), true);
 
     assert_eq!(Config::parse("not_exist.yml").is_err(), true);
 }

@@ -1,7 +1,8 @@
 //! 请求路径过滤
 
-use super::FilterStatus;
 use crate::{http, Config};
+
+use super::FilterStatus;
 
 pub fn filter_request_path(config: &Config, request: &http::Request) -> FilterStatus {
     let path = &config.deny.request.line.path;

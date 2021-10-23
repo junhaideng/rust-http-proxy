@@ -4,13 +4,13 @@ server:
   pool: 
     size: 100
   auth: 
-    username:
-    password:
+    username: rust
+    password: proxy
 # 
 deny:
   request:
     line: 
-      methods: [GET, POST, PUT]
+      methods: [POST, PUT]
       path: 
         - /login
     headers:

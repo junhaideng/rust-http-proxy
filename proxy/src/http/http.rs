@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-
 use std::io::Read;
 use std::net::TcpStream;
 use std::str;
@@ -102,7 +101,7 @@ pub struct RequestLine {
 }
 
 // 请求行解析, 比如GET /hello HTTP/1.1
-fn parse_requst_header(line: &str) -> Result<RequestLine, &str> {
+fn parse_request_header(line: &str) -> Result<RequestLine, &str> {
     let line: Vec<_> = line.split(' ').collect();
     if line.len() != 3 {
         return Err("Request line is not correct");
@@ -112,7 +111,7 @@ fn parse_requst_header(line: &str) -> Result<RequestLine, &str> {
     let version = HttpVersion::parse(line[2])?;
     Ok(RequestLine {
         method: method,
-        path: path.to_string(),
+        path: path.to_string().clone(),
         version: version,
     })
 }
@@ -363,7 +362,7 @@ impl Response {
 }
 
 /// 解析 HTTP 协议内容
-fn parse(stream: &mut TcpStream) -> (HashMap<String, String>, Vec<u8>) {
+fn parse(stream: &mut TcpStream) -> Result<(HashMap<String, String>, Vec<u8>), &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 数据保存
@@ -416,10 +415,10 @@ fn parse(stream: &mut TcpStream) -> (HashMap<String, String>, Vec<u8>) {
             .expect("body is less than Content-Length");
     }
 
-    (header, body)
+    Ok((header, body))
 }
 
-pub fn parse_request(stream: &mut TcpStream) -> Request {
+pub fn parse_request(stream: &mut TcpStream) -> Result<Request, &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 保存每一行的内容，会重复利用
@@ -443,22 +442,32 @@ pub fn parse_request(stream: &mut TcpStream) -> Request {
         }
         writer.push(buf[0]);
     }
+    // writer.clone()
+    let tmp = match str::from_utf8(&writer) {
+        Ok(str) => str,
+        Err(_err) => {
+            return Err("convert Vec<u8> to &[u8] failed");
+        }
+    };
 
-    let request_header = parse_requst_header(str::from_utf8(&writer.clone()).unwrap()).unwrap();
+    let request_header = match parse_request_header(tmp) {
+        Ok(line) => line,
+        Err(_) => return Err("parser request header failed"),
+    };
 
-    let (header, body) = parse(stream);
+    let (header, body) = parse(stream)?;
 
-    Request {
+    Ok(Request {
         method: request_header.method,
         path: request_header.path,
         version: request_header.version,
         headers: header,
         body: body,
         cache: vec![],
-    }
+    })
 }
 
-pub fn parse_response(stream: &mut TcpStream) -> Response {
+pub fn parse_response(stream: &mut TcpStream) -> Result<Response, &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 保存每一行的内容，会重复利用
@@ -467,7 +476,12 @@ pub fn parse_response(stream: &mut TcpStream) -> Response {
 
     // 首先读取一行数据，里面是请求行或者响应行
     loop {
-        let size = stream.read(&mut buf).unwrap();
+        let size = match stream.read(&mut buf) {
+            Ok(s) => s,
+            Err(_err) => {
+                return Err("read stream failed");
+            }
+        };
         if size == 0 {
             break;
         }
@@ -485,16 +499,16 @@ pub fn parse_response(stream: &mut TcpStream) -> Response {
 
     let response_header = parse_response_header(str::from_utf8(&writer.clone()).unwrap()).unwrap();
 
-    let (header, body) = parse(stream);
+    let (header, body) = parse(stream)?;
 
-    Response {
+    Ok(Response {
         version: response_header.version,
         code: response_header.code,
         text: response_header.text,
         headers: header,
         body: body,
         cache: vec![],
-    }
+    })
 }
 
 #[test]

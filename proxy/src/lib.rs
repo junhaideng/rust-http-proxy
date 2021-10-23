@@ -1,3 +1,9 @@
+#[macro_use]
+extern crate lazy_static;
+
+pub use config::Config;
+pub use server::Server;
+
 mod banner;
 mod config;
 mod iptables;
@@ -8,8 +14,3 @@ mod utils;
 
 pub mod filter;
 pub mod http;
-pub use config::Config;
-pub use server::Server;
-
-#[macro_use]
-extern crate lazy_static;

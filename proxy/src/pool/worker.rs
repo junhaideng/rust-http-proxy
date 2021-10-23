@@ -1,12 +1,20 @@
-use super::message::Message;
-use crate::{http, utils};
 use std::io::Write;
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-#[derive(Debug)]
+use crate::config::Config;
+use crate::filter::{FilterRequest, FilterResponse, FilterStatus};
+use crate::{http, utils};
+
+use super::message::Message;
+use log::{error, info};
+
+lazy_static! {
+    static ref CFG: Config = Config::parse("config.yml").unwrap();
+}
+
 pub struct Worker {
     pub id: usize,
     pub thread: Option<thread::JoinHandle<()>>,
@@ -14,22 +22,32 @@ pub struct Worker {
 
 impl Worker {
     // 创建 worker 接收数据进行处理
-    pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
+    pub fn new(
+        id: usize,
+        receiver: Arc<Mutex<mpsc::Receiver<Message>>>,
+        req_chain: Arc<Vec<FilterRequest>>,
+        resp_chain: Arc<Vec<FilterResponse>>,
+    ) -> Worker {
         let thread = thread::spawn(move || loop {
             let message = receiver.lock().unwrap().recv().unwrap();
 
             match message {
                 Message::NewStream(mut stream) => {
-                    println!("worker {} recv stream", id);
+                    // println!("worker {} recv stream", id);
 
                     // 处理http请求流数据
-                    Self::handle_stream(&mut stream);
-                    stream
-                        .shutdown(Shutdown::Both)
-                        .expect("shutdown stream failed");
+                    Self::handle_stream(&mut stream, req_chain.clone(), resp_chain.clone());
+                    match stream.shutdown(Shutdown::Both) {
+                        Ok(()) => {}
+                        Err(err) => {
+                            error!("worker {} exists, err: {}", id, err.to_string());
+                            break;
+                        }
+                    }
                 }
                 // 结束
                 Message::Terminate => {
+                    info!("worker {} terminate ...", id);
                     break;
                 }
             }
@@ -42,30 +60,55 @@ impl Worker {
     }
 
     // 处理 HTTP 连接
-    fn handle_stream(stream: &mut TcpStream) {
+    // fn handle_stream(stream: &mut TcpStream, request_chain: &Vec<FilterRequest>, res_chain: &Vec<FilterResponse>) {
+    fn handle_stream(
+        stream: &mut TcpStream,
+        req_chain: Arc<Vec<FilterRequest>>,
+        resp_chain: Arc<Vec<FilterResponse>>,
+    ) {
         // 读取内容，解析协议
-        let mut req = http::parse_request(stream);
-        println!("{:?}", req);
+        let mut req = match http::parse_request(stream) {
+            Ok(req) => req,
+            Err(err) => {
+                error!("parser request failed: {}", err);
+                return;
+            }
+        };
+
+        // 过滤请求
+        for request in req_chain.iter() {
+            match request(&CFG, &req) {
+                FilterStatus::Reject => {
+                    http::forbidden(stream);
+                    return;
+                }
+                FilterStatus::Forward => {}
+            }
+        }
 
         // 找到host
         let mut host = req.headers.get("Host").expect("No host specified").clone();
         // 目前不支持HTTPS
         if host.contains("443") || req.path.contains("https") {
             stream.shutdown(Shutdown::Both).unwrap();
-            println!("not support https");
+            info!("do not support https");
             return;
         }
         match req.headers.get("Proxy-Authorization") {
-            // TODO: 进行密码验证
             Some(auth) => {
                 let auth = utils::decode(&(auth[6..]).to_string()).unwrap();
-                println!("auth: {:?}", auth);
+                // 进行
+                if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password) {
+                    println!("auth pass: {:?}", auth);
+                    info!("user {} login", auth.0);
+                } else {
+                    http::proxy_auth(stream);
+                    return;
+                }
             }
             None => {
                 // 要求输入密码
-                stream.write("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic\r\n\r\n".as_bytes()).unwrap();
-                stream.shutdown(Shutdown::Both).unwrap();
-                println!("need authorize");
+                http::proxy_auth(stream);
                 return;
             }
         }
@@ -111,17 +154,30 @@ impl Worker {
         client.flush().expect("flush data failed");
 
         // 解析收到的 HTTP 响应
-        let mut res = http::parse_response(&mut client);
+        let mut res = match http::parse_response(&mut client) {
+            Ok(res) => res,
+            Err(err) => {
+                error!("parse response failed: {}", err);
+                return;
+            }
+        };
 
-        // if filter_response(&res) {
-        //     // TODO： 应该被过滤掉
-        //     println!("filter true");
-        // } else {
-        //     println!("filter false, 全部数据返回");
+        // filter request
+        for request in resp_chain.iter() {
+            match request(&CFG, &res) {
+                FilterStatus::Reject => {
+                    println!("reject");
+                    http::forbidden(stream);
+                    return;
+                }
+                FilterStatus::Forward => {}
+            }
+        }
+
         stream.write(&res.as_bytes()).unwrap();
         stream.flush().unwrap();
         // }
-        println!("\nres: {:?}", res);
-        println!("body: {:?}\n", String::from_utf8_lossy(&res.body));
+        // println!("\nres: {:?}", res);
+        // println!("body: {:?}\n", String::from_utf8_lossy(&res.body));
     }
 }

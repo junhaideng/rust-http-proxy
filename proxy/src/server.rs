@@ -1,14 +1,14 @@
-use crate::banner;
-use crate::config::Config;
-use crate::filter::{FilterRequest, FilterResponse};
-use crate::iptables::init as init_iptables;
-use crate::pool::ThreadPool;
-
-use super::log::init as init_log;
-use log::{error, info};
 use std::error::Error;
 use std::net::TcpListener;
-use std::time::SystemTime;
+
+use log::info;
+
+use crate::banner;
+use crate::config::Config;
+use crate::pool::ThreadPool;
+
+use super::iptables::init as init_iptables;
+use super::log::init as init_log;
 
 lazy_static! {
     static ref CFG: Config = Config::parse("config.yml").unwrap();
@@ -22,16 +22,8 @@ pub struct Server {
     host: String,
     // 监听socket
     listener: TcpListener,
-    // 多少个链接
-    count: u64,
-    // 开始运行时间
-    start: SystemTime,
-    // 拒绝了多少个请求
-    reject: u64,
     // pool
     pool: ThreadPool,
-    // 线程池大小
-    pool_size: usize,
 }
 
 impl Server {
@@ -41,7 +33,7 @@ impl Server {
     pub fn new(host: &str, port: &str, pool_size: usize) -> Server {
         // 初始化日志
         init_log();
-        init_iptables(port).unwrap();
+        // init_iptables(port).unwrap();
 
         let l = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
         let pool = ThreadPool::new(pool_size);
@@ -50,11 +42,7 @@ impl Server {
             host: host.to_string(),
             port: port.to_string(),
             listener: l,
-            count: 0,
-            start: SystemTime::now(),
-            reject: 0,
             pool: pool,
-            pool_size: pool_size,
         }
     }
 
@@ -70,8 +58,6 @@ impl Server {
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    self.count += 1;
-                    println!("get connection stream");
                     self.pool.execute(stream).expect("execute failed");
                 }
                 Err(e) => return Err(Box::new(e)),
@@ -79,14 +65,9 @@ impl Server {
         }
         Ok(())
     }
-
-    // 添加请求过滤器
-    pub fn add_request_filter(&mut self, f: FilterRequest) {
-        self.pool.request_filter_chain.push(f);
-    }
-
-    // 添加响应过滤器
-    pub fn add_response_filter(&mut self, f: FilterResponse) {
-        self.pool.response_filter_chain.push(f);
+    
+    // 开启透明代理
+    pub fn init_iptables(&self) {
+      init_iptables(&self.port).expect("init iptables failed, check your permissions！");
     }
 }

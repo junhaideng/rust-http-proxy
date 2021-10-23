@@ -22,7 +22,7 @@ fn filter_header(headers: &HashMap<String, String>, key: &str, value: &str) -> F
 
 // 过滤请求中的头部信息
 pub fn filter_request(config: &Config, request: &http::Request) -> FilterStatus {
-    for header in config.deny.response.headers.iter() {
+    for header in config.deny.request.headers.iter() {
         match filter_header(&request.headers, &header.key, &header.value) {
             FilterStatus::Reject => return FilterStatus::Reject,
             _ => {}
