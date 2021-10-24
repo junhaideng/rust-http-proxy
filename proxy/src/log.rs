@@ -6,7 +6,7 @@ use log4rs::encode::pattern::PatternEncoder;
 pub fn init() {
     let logfile = FileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
-            "{d(%Y-%m-%d %H:%M:%S)} {l} {t} - {m}{n}\n",
+            "{d(%Y-%m-%d %H:%M:%S)} {l} {t} - {m}{n}",
         )))
         .build("proxy.log")
         .unwrap();

@@ -33,17 +33,8 @@ impl Worker {
 
             match message {
                 Message::NewStream(mut stream) => {
-                    // println!("worker {} recv stream", id);
-
                     // 处理http请求流数据
                     Self::handle_stream(&mut stream, req_chain.clone(), resp_chain.clone());
-                    match stream.shutdown(Shutdown::Both) {
-                        Ok(()) => {}
-                        Err(err) => {
-                            error!("worker {} exists, err: {}", id, err.to_string());
-                            break;
-                        }
-                    }
                 }
                 // 结束
                 Message::Terminate => {
@@ -60,7 +51,6 @@ impl Worker {
     }
 
     // 处理 HTTP 连接
-    // fn handle_stream(stream: &mut TcpStream, request_chain: &Vec<FilterRequest>, res_chain: &Vec<FilterResponse>) {
     fn handle_stream(
         stream: &mut TcpStream,
         req_chain: Arc<Vec<FilterRequest>>,
@@ -94,6 +84,8 @@ impl Worker {
             info!("do not support https");
             return;
         }
+
+        // 鉴权
         match req.headers.get("Proxy-Authorization") {
             Some(auth) => {
                 let auth = utils::decode(&(auth[6..]).to_string()).unwrap();
@@ -107,7 +99,7 @@ impl Worker {
                 }
             }
             None => {
-                // 要求输入密码
+                // 要求输入用户名、密码
                 http::proxy_auth(stream);
                 return;
             }
@@ -149,7 +141,7 @@ impl Worker {
         client
             .write(&req.as_bytes())
             .expect("send http request failed");
-        println!("resq: {}", String::from_utf8(req.as_bytes()).unwrap());
+        // println!("resq: {}", String::from_utf8(req.as_bytes()).unwrap());
 
         client.flush().expect("flush data failed");
 

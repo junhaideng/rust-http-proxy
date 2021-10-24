@@ -1,7 +1,6 @@
+use log::info;
 use std::error::Error;
 use std::net::TcpListener;
-
-use log::info;
 
 use crate::banner;
 use crate::config::Config;
@@ -65,9 +64,9 @@ impl Server {
         }
         Ok(())
     }
-    
+
     // 开启透明代理
     pub fn init_iptables(&self) {
-      init_iptables(&self.port).expect("init iptables failed, check your permissions！");
+        init_iptables(&self.port).expect("init iptables failed, check your permissions！");
     }
 }

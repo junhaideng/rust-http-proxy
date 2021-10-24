@@ -1,5 +1,6 @@
 //! http.rs 负责http协议的解析
 
+use log::error;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io::Read;
@@ -452,7 +453,10 @@ pub fn parse_request(stream: &mut TcpStream) -> Result<Request, &str> {
 
     let request_header = match parse_request_header(tmp) {
         Ok(line) => line,
-        Err(_) => return Err("parser request header failed"),
+        Err(_) => {
+            error!("header: {}", tmp);
+            return Err("parser request header failed");
+        }
     };
 
     let (header, body) = parse(stream)?;

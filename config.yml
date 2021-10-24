@@ -1,25 +1,26 @@
 server:
-  port: 8080
-  host: 0.0.0.0
-  pool: 
-    size: 100
-  auth: 
-    username: rust
-    password: proxy
-# 
+    port: 8080
+    address: 0.0.0.0
+    pool: 
+        size: 100
+    auth: 
+        username:
+        password:
+
+# 需要被过滤的内容
 deny:
-  request:
-    line: 
-      methods: [POST, PUT]
-      path: 
-        - /login
-    headers:
-      - 
-        key: "Content-Type"
-        value: "application/json"
+    request:
+       line: # 请求行中的数据
+           method: [POST, PUT]  # 请求方法
+           path:  # 请求路径
+           - /login
+       headers:  # 请求头部
+          - 
+            key: "Content-Type"
+            value: "application/json"
         
-  response:
-      headers:
-      - 
-          key: "Content-Type"
-          value: "pdf"
+    response: # 响应中的数据过滤，暂只对请求头部信息进行过滤
+        headers:
+          - 
+            key: "Content-Type"
+            value: "pdf"

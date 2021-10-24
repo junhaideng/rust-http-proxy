@@ -5,4 +5,7 @@ build:
 	cargo build --release
 
 fmt: 
-	cargo fix --allow-dirty && cargo fmt && cd proxy && cargo fix --allow-dirty && cargo fmt && cd ..
+	cargo fix --allow-dirty && cargo fmt && cd proxy && cargo fix --allow-dirty && cargo fmt && cd .. 
+
+cloc:
+	cloc . --exclude-dir=target, proxy/target, .vscode, .idea
