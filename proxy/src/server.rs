@@ -1,24 +1,18 @@
-use log::info;
 use std::error::Error;
 use std::net::TcpListener;
 
 use crate::banner;
-use crate::config::Config;
 use crate::pool::ThreadPool;
 
 use super::iptables::init as init_iptables;
 use super::log::init as init_log;
 
-lazy_static! {
-    static ref CFG: Config = Config::parse("config.yml").unwrap();
-}
-
 const VERSION: &str = "v1.0.0";
 
 /// 代理服务器
 pub struct Server {
-    port: String,
-    host: String,
+    pub port: String,
+    pub host: String,
     // 监听socket
     listener: TcpListener,
     // pool
@@ -32,7 +26,6 @@ impl Server {
     pub fn new(host: &str, port: &str, pool_size: usize) -> Server {
         // 初始化日志
         init_log();
-        // init_iptables(port).unwrap();
 
         let l = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
         let pool = ThreadPool::new(pool_size);
@@ -51,7 +44,7 @@ impl Server {
     // 3. 返回
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         banner::print(VERSION);
-        info!("run server on {}:{}", self.host, self.port);
+        println!("run server on {}:{}", self.host, self.port);
         // Iptable::init(&self.port).unwrap();
 
         for stream in self.listener.incoming() {

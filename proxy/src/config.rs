@@ -17,15 +17,7 @@ pub struct Config {
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct Server {
-    pub port: String,
-    pub host: String,
-    pub pool: PoolConfig,
     pub auth: Auth,
-}
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-pub struct PoolConfig {
-    size: usize,
 }
 
 /// 代理验证需要的用户名和密码
@@ -80,9 +72,6 @@ impl Config {
         // 默认配置
         let default_config: Config = Config {
             server: Server {
-                port: "8080".to_string(),
-                host: "0.0.0.0".to_string(),
-                pool: PoolConfig { size: 100 },
                 auth: Auth {
                     username: "".to_string(),
                     password: "".to_string(),
@@ -110,7 +99,7 @@ fn parse_config_test() {
     let config = Config::parse("test/config.yml");
     assert_eq!(config.is_ok(), true);
     let config = config.unwrap();
-    assert_eq!(config.server.host, "0.0.0.0");
-    assert_eq!(config.server.port, "8080");
+    assert_eq!(config.server.auth.username, "rust");
+    assert_eq!(config.server.auth.password, "proxy");
     assert!(&config.deny.request.headers.len() > &0);
 }
