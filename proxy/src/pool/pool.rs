@@ -74,7 +74,7 @@ impl Drop for ThreadPool {
         info!("Sending terminate message to all workers.");
 
         for _ in &mut self.workers {
-            self.sender.send(Message::Terminate).unwrap();
+            self.sender.send(Message::Terminate).expect("send message failed");
         }
 
         info!("Shutting down all workers.");
@@ -83,7 +83,7 @@ impl Drop for ThreadPool {
             info!("Shutting down worker {}", worker.id);
 
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                thread.join().expect("thread join failed");
             }
         }
     }

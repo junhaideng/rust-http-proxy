@@ -12,7 +12,7 @@ use super::message::Message;
 use log::{error, info};
 
 lazy_static! {
-    static ref CFG: Config = Config::parse("config.yml").unwrap();
+    static ref CFG: Config = Config::parse("config.yml").expect("parse config.yml failed");
 }
 
 pub struct Worker {
@@ -29,7 +29,11 @@ impl Worker {
         resp_chain: Arc<Vec<FilterResponse>>,
     ) -> Worker {
         let thread = thread::spawn(move || loop {
-            let message = receiver.lock().unwrap().recv().unwrap();
+            let message = receiver
+                .lock()
+                .expect("require lock failed")
+                .recv()
+                .expect("receive message failed");
 
             match message {
                 Message::NewStream(mut stream) => {
@@ -80,7 +84,7 @@ impl Worker {
         let mut host = req.headers.get("Host").expect("No host specified").clone();
         // 目前不支持HTTPS
         if host.contains("443") || req.path.contains("https") {
-            stream.shutdown(Shutdown::Both).unwrap();
+            stream.shutdown(Shutdown::Both).expect("shutdown stream failed");
             info!("do not support https");
             return;
         }
@@ -88,7 +92,7 @@ impl Worker {
         // 鉴权
         match req.headers.get("Proxy-Authorization") {
             Some(auth) => {
-                let auth = utils::decode(&(auth[6..]).to_string()).unwrap();
+                let auth = utils::decode(&(auth[6..]).to_string()).expect("decode authorization failed");
                 // 进行
                 if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password) {
                     println!("auth pass: {:?}", auth);
@@ -129,19 +133,19 @@ impl Worker {
             };
         }
 
-        // 连接到目的服务器失败
-        if client.is_none() {
-            eprintln!("Connect to server failed");
-            return;
-        }
-
-        let mut client = client.unwrap();
+        let mut client = match client {
+            Some(stream) => stream,
+            None => {
+                // 连接到目的服务器失败
+                eprintln!("Connect to server failed");
+                return;
+            }
+        };
 
         // 将客户端发送过来的请求发送到服务端
         client
             .write(&req.as_bytes())
             .expect("send http request failed");
-        // println!("resq: {}", String::from_utf8(req.as_bytes()).unwrap());
 
         client.flush().expect("flush data failed");
 
@@ -166,10 +170,7 @@ impl Worker {
             }
         }
 
-        stream.write(&res.as_bytes()).unwrap();
-        stream.flush().unwrap();
-        // }
-        // println!("\nres: {:?}", res);
-        // println!("body: {:?}\n", String::from_utf8_lossy(&res.body));
+        stream.write(&res.as_bytes()).expect("wirte stream failed");
+        stream.flush().expect("flush stream failed");
     }
 }

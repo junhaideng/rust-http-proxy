@@ -146,7 +146,12 @@ fn parse_response_header(line: &str) -> Result<ResponseLine, &str> {
     }
     let version = HttpVersion::parse(line[0])?;
 
-    let code = line[1].parse().unwrap();
+    let code = match line[1].parse() {
+        Ok(res) => res,
+        Err(_) => {
+            return Err("parser http code failed");
+        }
+    };
 
     let text = line[2];
     Ok(ResponseLine {
@@ -248,7 +253,12 @@ fn to_char_type_test() {
 }
 
 fn split_key_value(line: Vec<u8>) -> Result<(String, String), &'static str> {
-    let line = str::from_utf8(&line).unwrap();
+    let line = match str::from_utf8(&line) {
+        Ok(res) => res,
+        Err(_) => {
+            return Err("convert to &str failed");
+        }
+    };
     let res: Vec<&str> = line.splitn(2, ':').collect();
     let res: Vec<&str> = res.iter().map(|s| s.trim()).collect();
     if res.len() == 2 {
@@ -385,7 +395,7 @@ fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &s
     let mut header = HashMap::new();
 
     loop {
-        let size = stream.read(&mut buf).unwrap();
+        let size = stream.read(&mut buf).expect("read stream failed");
         if size == 0 {
             break;
         }
@@ -405,7 +415,7 @@ fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &s
 
         // 10 -> \n
         if buf[0] == 10 {
-            let res = split_key_value(writer.clone()).unwrap();
+            let res = split_key_value(writer.clone())?;
 
             header.insert(res.0.clone(), res.1.clone());
             writer.clear();
@@ -416,15 +426,23 @@ fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &s
     }
 
     let length: usize = match header.get("Content-Length") {
-        Some(length) => length.parse().unwrap(),
+        Some(length) => match length.parse() {
+            Ok(res) => res,
+            Err(_) => {
+                return Err("parse Content-Length failed");
+            }
+        },
         None => 0,
     };
     let mut body = vec![0; length];
 
     if length != 0 {
-        stream
-            .read_exact(&mut body)
-            .expect("body is less than Content-Length");
+        match stream.read_exact(&mut body) {
+            Ok(_) => {}
+            Err(_) => {
+                return Err("body is less than Content-Length");
+            }
+        }
     }
 
     Ok((header, body))
@@ -439,7 +457,7 @@ pub fn parse_request(stream: &mut dyn Read) -> Result<Request, &str> {
 
     // 首先读取一行数据，里面是请求行或者响应行
     loop {
-        let size = stream.read(&mut buf).unwrap();
+        let size = stream.read(&mut buf).expect("read stream failed");
         if size == 0 {
             break;
         }
@@ -512,7 +530,12 @@ pub fn parse_response(stream: &mut dyn Read) -> Result<Response, &str> {
         writer.push(buf[0]);
     }
 
-    let response_header = parse_response_header(str::from_utf8(&writer.clone()).unwrap()).unwrap();
+    let response_header = parse_response_header(match str::from_utf8(&writer) {
+        Ok(res) => res,
+        Err(_) => {
+            return Err("parse failed");
+        }
+    }).expect("parse http response header failed");
 
     let (header, body) = parse(stream)?;
 

@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::net::TcpListener;
 
 use crate::banner;
@@ -23,36 +22,38 @@ impl Server {
     /// 创建一个新的 Server
     ///
     /// 可以指定对应的地址，端口，线程池大小
-    pub fn new(host: &str, port: &str, pool_size: usize) -> Server {
+    pub fn new(host: &str, port: &str, pool_size: usize) -> Result<Server, &'static str> {
         // 初始化日志
         init_log();
 
-        let l = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
+        let l = match TcpListener::bind(format!("{}:{}", host, port)) {
+            Ok(res) => res,
+            Err(_) => return Err("bind address failed"),
+        };
         let pool = ThreadPool::new(pool_size);
 
-        Server {
+        Ok(Server {
             host: host.to_string(),
             port: port.to_string(),
             listener: l,
             pool: pool,
-        }
+        })
     }
 
     // 运行服务器
     // 1. 初始化iptalbes配置，流量进行重定向
     // 2. 开启线程池，进行http响应的处理
     // 3. 返回
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn run(&mut self) -> Result<(), String> {
         banner::print(VERSION);
         println!("run server on {}:{}", self.host, self.port);
-        // Iptable::init(&self.port).unwrap();
 
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
                     self.pool.execute(stream).expect("execute failed");
                 }
-                Err(e) => return Err(Box::new(e)),
+                Err(e) => return Err(e.to_string()),
             }
         }
         Ok(())

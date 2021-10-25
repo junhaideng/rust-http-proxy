@@ -43,6 +43,14 @@ fn main() {
         None => 4,
     };
 
-    let mut s = Server::new(&host, &port, size);
-    s.run().unwrap();
+    let mut s = match Server::new(&host, &port, size) {
+        Ok(server) => server,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+    if let Err(err) = s.run() {
+        println!("{}", err)
+    };
 }
