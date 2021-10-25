@@ -1,5 +1,6 @@
 server:
     auth: 
+        enable: true
         username: rust 
         password: proxy
 

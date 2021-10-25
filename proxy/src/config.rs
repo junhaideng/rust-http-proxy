@@ -23,6 +23,7 @@ pub struct Server {
 /// 代理验证需要的用户名和密码
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct Auth {
+    pub enable: bool,
     pub username: String,
     pub password: String,
 }
@@ -73,6 +74,7 @@ impl Config {
         let default_config: Config = Config {
             server: Server {
                 auth: Auth {
+                    enable: false,
                     username: "".to_string(),
                     password: "".to_string(),
                 },
@@ -99,6 +101,7 @@ fn parse_config_test() {
     let config = Config::parse("test/config.yml");
     assert_eq!(config.is_ok(), true);
     let config = config.unwrap();
+    assert!(config.server.auth.enable);
     assert_eq!(config.server.auth.username, "rust");
     assert_eq!(config.server.auth.password, "proxy");
     assert!(&config.deny.request.headers.len() > &0);

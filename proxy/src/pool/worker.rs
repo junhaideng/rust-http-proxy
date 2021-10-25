@@ -91,27 +91,28 @@ impl Worker {
             return;
         }
 
-        // 鉴权
-        match req.headers.get("Proxy-Authorization") {
-            Some(auth) => {
-                let auth =
-                    utils::decode(&(auth[6..]).to_string()).expect("decode authorization failed");
-                // 进行
-                if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password) {
-                    println!("auth pass: {:?}", auth);
-                    info!("user {} login", auth.0);
-                } else {
+        if CFG.server.auth.enable {
+            // 鉴权
+            match req.headers.get("Proxy-Authorization") {
+                Some(auth) => {
+                    let auth = utils::decode(&(auth[6..]).to_string())
+                        .expect("decode authorization failed");
+                    // 进行
+                    if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password)
+                    {
+                        info!("user {} login", auth.0);
+                    } else {
+                        http::proxy_auth(stream);
+                        return;
+                    }
+                }
+                None => {
+                    // 要求输入用户名、密码
                     http::proxy_auth(stream);
                     return;
                 }
             }
-            None => {
-                // 要求输入用户名、密码
-                http::proxy_auth(stream);
-                return;
-            }
         }
-
         if !host.contains(":") {
             host = host + ":80";
         }
