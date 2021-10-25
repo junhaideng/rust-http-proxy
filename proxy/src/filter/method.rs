@@ -13,3 +13,21 @@ pub fn filter_request_method(config: &Config, request: &http::Request) -> Filter
     }
     FilterStatus::Forward
 }
+
+#[test]
+fn filter_request_method_test() {
+    let mut config = Config::default();
+    let mut request = http::Request::default();
+
+    config.deny.request.line.methods.push("POST".to_string());
+    assert_eq!(
+        filter_request_method(&config, &request),
+        FilterStatus::Forward
+    );
+
+    request.method = http::Method::POST;
+    assert_eq!(
+        filter_request_method(&config, &request),
+        FilterStatus::Reject
+    );
+}

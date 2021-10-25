@@ -9,7 +9,7 @@ use serde_yaml;
 const FILENAME: &str = "config.yml";
 
 /// 配置文件内容
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Config {
     pub server: Server,
     pub deny: DenyConfig,
@@ -102,17 +102,15 @@ impl Config {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        return Config::generate_default().unwrap();
-    }
-}
-
 #[test]
 fn parse_config_test() {
-    let config = Config::parse("../config.yml").unwrap();
-    println!("{:?}", config);
-    assert_eq!(Config::parse("../config.yml").is_ok(), true);
+    // config.yml 在根目录
+    assert_eq!(Config::parse("test/not_exist.yml").is_err(), true);
 
-    assert_eq!(Config::parse("not_exist.yml").is_err(), true);
+    let config = Config::parse("test/config.yml");
+    assert_eq!(config.is_ok(), true);
+    let config = config.unwrap();
+    assert_eq!(config.server.host, "0.0.0.0");
+    assert_eq!(config.server.port, "8080");
+    assert!(&config.deny.request.headers.len() > &0);
 }

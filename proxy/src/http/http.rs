@@ -4,7 +4,6 @@ use log::error;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io::Read;
-use std::net::TcpStream;
 use std::str;
 
 /// HTTP 方法
@@ -51,6 +50,12 @@ impl Display for Method {
     }
 }
 
+impl Default for Method {
+    fn default() -> Self {
+        Method::GET
+    }
+}
+
 /// HTTP 版本号
 ///
 /// 比如 HTTP/1.0 HTTP/1.1 HTTP/2 HTTP/3
@@ -88,6 +93,12 @@ impl HttpVersion {
 impl Display for HttpVersion {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl Default for HttpVersion {
+    fn default() -> Self {
+        HttpVersion::Http11
     }
 }
 
@@ -249,7 +260,7 @@ fn split_key_value(line: Vec<u8>) -> Result<(String, String), &'static str> {
 /// HTTP 请求
 ///
 /// 代表一次 HTTP 请求的所有数据，包括请求行，请求头部，请求实体内容
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Request {
     pub method: Method,
     pub path: String,
@@ -307,7 +318,7 @@ impl Request {
 /// HTTP 响应
 ///
 /// 代表HTTP 响应内容，包括响应行，响应头部，响应体
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Response {
     pub version: HttpVersion,
     pub code: u16,
@@ -363,7 +374,7 @@ impl Response {
 }
 
 /// 解析 HTTP 协议内容
-fn parse(stream: &mut TcpStream) -> Result<(HashMap<String, String>, Vec<u8>), &str> {
+fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 数据保存
@@ -419,7 +430,7 @@ fn parse(stream: &mut TcpStream) -> Result<(HashMap<String, String>, Vec<u8>), &
     Ok((header, body))
 }
 
-pub fn parse_request(stream: &mut TcpStream) -> Result<Request, &str> {
+pub fn parse_request(stream: &mut dyn Read) -> Result<Request, &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 保存每一行的内容，会重复利用
@@ -471,7 +482,7 @@ pub fn parse_request(stream: &mut TcpStream) -> Result<Request, &str> {
     })
 }
 
-pub fn parse_response(stream: &mut TcpStream) -> Result<Response, &str> {
+pub fn parse_response(stream: &mut dyn Read) -> Result<Response, &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 保存每一行的内容，会重复利用
@@ -525,4 +536,35 @@ fn method_test() {
     assert_eq!(HttpVersion::parse("HTTP/1.1").unwrap(), HttpVersion::Http11);
     assert_eq!(HttpVersion::parse("HTTP/2").unwrap(), HttpVersion::Http2);
     assert_eq!(HttpVersion::parse("HTTP/3").unwrap(), HttpVersion::Http3);
+}
+
+#[test]
+fn parse_request_test() {
+    use std::io::Cursor;
+    let request_str = "POST /login HTTP/1.1\r\nContent-Length: 5\r\n\r\nhello".as_bytes();
+    let mut request_ = Cursor::new(request_str);
+    let request = parse_request(&mut request_);
+    assert!(request.is_ok());
+
+    let request = request.unwrap();
+
+    assert_eq!(request.path, "/login");
+    assert_eq!(request.body, "hello".as_bytes());
+    assert!(request.headers.get("Content-Length").is_some());
+    assert_eq!(request.headers.get("Content-Length").unwrap(), "5")
+}
+
+#[test]
+fn parse_response_test() {
+    use std::io::Cursor;
+    let response_str = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello".as_bytes();
+    let mut response = Cursor::new(response_str);
+    let response = parse_response(&mut response);
+    assert!(response.is_ok());
+
+    let response = response.unwrap();
+
+    assert_eq!(response.body, "hello".as_bytes());
+    assert!(response.headers.get("Content-Length").is_some());
+    assert_eq!(response.headers.get("Content-Length").unwrap(), "5")
 }
