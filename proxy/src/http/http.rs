@@ -535,7 +535,8 @@ pub fn parse_response(stream: &mut dyn Read) -> Result<Response, &str> {
         Err(_) => {
             return Err("parse failed");
         }
-    }).expect("parse http response header failed");
+    })
+    .expect("parse http response header failed");
 
     let (header, body) = parse(stream)?;
 

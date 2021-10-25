@@ -84,7 +84,9 @@ impl Worker {
         let mut host = req.headers.get("Host").expect("No host specified").clone();
         // 目前不支持HTTPS
         if host.contains("443") || req.path.contains("https") {
-            stream.shutdown(Shutdown::Both).expect("shutdown stream failed");
+            stream
+                .shutdown(Shutdown::Both)
+                .expect("shutdown stream failed");
             info!("do not support https");
             return;
         }
@@ -92,7 +94,8 @@ impl Worker {
         // 鉴权
         match req.headers.get("Proxy-Authorization") {
             Some(auth) => {
-                let auth = utils::decode(&(auth[6..]).to_string()).expect("decode authorization failed");
+                let auth =
+                    utils::decode(&(auth[6..]).to_string()).expect("decode authorization failed");
                 // 进行
                 if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password) {
                     println!("auth pass: {:?}", auth);

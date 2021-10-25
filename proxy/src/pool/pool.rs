@@ -74,7 +74,9 @@ impl Drop for ThreadPool {
         info!("Sending terminate message to all workers.");
 
         for _ in &mut self.workers {
-            self.sender.send(Message::Terminate).expect("send message failed");
+            self.sender
+                .send(Message::Terminate)
+                .expect("send message failed");
         }
 
         info!("Shutting down all workers.");
