@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::net::{Shutdown, TcpStream, ToSocketAddrs};
+use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -92,10 +92,7 @@ impl Worker {
         // 目前不支持HTTPS
         if host.contains("443") || req.path.contains("https") {
             warn!("do not support https: {}", req.path);
-            if let Err(e) = stream.shutdown(Shutdown::Both) {
-                error!("shutdown stream failed: {}", e);
-                return;
-            }
+            http::not_support_https(stream);
             return;
         }
 

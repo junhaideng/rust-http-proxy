@@ -6,48 +6,40 @@ static HTTP_AUTH: &[u8] = "HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\
 static HTTP_FORBIDDEN: &[u8] = "HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n".as_bytes();
 static HTTP_PROXY_AUTH: &[u8] =
     "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic\r\n\r\n".as_bytes();
+static HTTP_NOT_SUPPORT: &[u8] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 31\r\n\r\nProxy do not support https Now".as_bytes();
 
 pub fn unauthorized(stream: &mut TcpStream) {
-    match stream.write(HTTP_AUTH) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("write stream failed: {}", &err);
-        }
-    };
-    match stream.shutdown(Shutdown::Both) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("shutdown stream failed: {}", &err);
-        }
-    };
+    if let Err(err) = stream.write(HTTP_AUTH) {
+        error!("write stream failed: {}", err);
+    }
+    if let Err(err) = stream.shutdown(Shutdown::Both) {
+        error!("shutdown stream failed: {}", err);
+    }
 }
 
 pub fn forbidden(stream: &mut TcpStream) {
-    match stream.write(HTTP_FORBIDDEN) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("write stream failed: {}", &err);
-        }
-    };
-    match stream.shutdown(Shutdown::Both) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("shutdown stream failed: {}", &err);
-        }
-    };
+    if let Err(err) = stream.write(HTTP_FORBIDDEN) {
+        error!("write stream failed: {}", err);
+    }
+    if let Err(err) = stream.shutdown(Shutdown::Both) {
+        error!("shutdown stream failed: {}", err);
+    }
 }
 
 pub fn proxy_auth(stream: &mut TcpStream) {
-    match stream.write(HTTP_PROXY_AUTH) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("write stream failed: {}", &err);
-        }
-    };
-    match stream.shutdown(Shutdown::Both) {
-        Ok(_) => {}
-        Err(err) => {
-            error!("shutdown stream failed: {}", &err);
-        }
-    };
+    if let Err(err) = stream.write(HTTP_PROXY_AUTH) {
+        error!("write stream failed: {}", err);
+    }
+    if let Err(err) = stream.shutdown(Shutdown::Both) {
+        error!("shutdown stream failed: {}", err);
+    }
+}
+
+pub fn not_support_https(stream: &mut TcpStream) {
+    if let Err(err) = stream.write(HTTP_NOT_SUPPORT) {
+        error!("write stream failed: {}", err);
+    }
+    if let Err(err) = stream.shutdown(Shutdown::Both) {
+        error!("shutdown stream failed: {}", err);
+    }
 }
