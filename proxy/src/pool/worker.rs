@@ -9,7 +9,7 @@ use crate::filter::{FilterRequest, FilterResponse, FilterStatus};
 use crate::{http, utils};
 
 use super::message::Message;
-use log::{error, info};
+use log::{error, info, warn};
 
 lazy_static! {
     static ref CFG: Config = Config::parse("config.yml").expect("parse config.yml failed");
@@ -73,6 +73,7 @@ impl Worker {
         for request in req_chain.iter() {
             match request(&CFG, &req) {
                 FilterStatus::Reject => {
+                    info!("reject {:?}", &req);
                     http::forbidden(stream);
                     return;
                 }
@@ -81,26 +82,38 @@ impl Worker {
         }
 
         // 找到host
-        let mut host = req.headers.get("Host").expect("No host specified").clone();
+        let mut host = match req.headers.get("Host") {
+            Some(s) => s.clone(),
+            None => {
+                error!("No host specified: {:?}", req);
+                return;
+            }
+        };
         // 目前不支持HTTPS
         if host.contains("443") || req.path.contains("https") {
-            stream
-                .shutdown(Shutdown::Both)
-                .expect("shutdown stream failed");
-            info!("do not support https");
+            warn!("do not support https: {}", req.path);
+            if let Err(e) = stream.shutdown(Shutdown::Both) {
+                error!("shutdown stream failed: {}", e);
+                return;
+            }
             return;
         }
 
+        let mut auth = (String::new(), String::new());
         if CFG.server.auth.enable {
             // 鉴权
             match req.headers.get("Proxy-Authorization") {
-                Some(auth) => {
-                    let auth = utils::decode(&(auth[6..]).to_string())
-                        .expect("decode authorization failed");
+                Some(a) => {
+                    auth = match utils::decode(&(a[6..]).to_string()) {
+                        Ok(res) => res,
+                        Err(e) => {
+                            error!("decode authorization failed: {}", e);
+                            return;
+                        }
+                    };
                     // 进行
                     if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password)
                     {
-                        info!("user {} login", auth.0);
                     } else {
                         http::proxy_auth(stream);
                         return;
@@ -121,7 +134,7 @@ impl Worker {
         let socket_addrs = match host.to_socket_addrs() {
             Ok(addrs) => addrs,
             Err(_e) => {
-                println!("to socket addrs failed, host: {}", &host);
+                error!("convert to socket addrs failed, host: {}", &host);
                 return;
             }
         };
@@ -141,17 +154,21 @@ impl Worker {
             Some(stream) => stream,
             None => {
                 // 连接到目的服务器失败
-                eprintln!("Connect to server failed");
+                error!("Connect to server failed");
                 return;
             }
         };
 
         // 将客户端发送过来的请求发送到服务端
-        client
-            .write(&req.as_bytes())
-            .expect("send http request failed");
+        if let Err(e) = client.write(&req.as_bytes()) {
+            error!("send http request failed: {}", e);
+            return;
+        }
 
-        client.flush().expect("flush data failed");
+        if let Err(e) = client.flush() {
+            error!("flush data failed: {}", e);
+            return;
+        }
 
         // 解析收到的 HTTP 响应
         let mut res = match http::parse_response(&mut client) {
@@ -166,6 +183,7 @@ impl Worker {
         for request in resp_chain.iter() {
             match request(&CFG, &res) {
                 FilterStatus::Reject => {
+                    info!("reject response: {:?}", &res);
                     http::forbidden(stream);
                     return;
                 }
@@ -173,7 +191,16 @@ impl Worker {
             }
         }
 
-        stream.write(&res.as_bytes()).expect("wirte stream failed");
-        stream.flush().expect("flush stream failed");
+        info!("user `{}` visited  {}", auth.0, req.path);
+
+        if let Err(e) = stream.write(&res.as_bytes()) {
+            error!("wirte stream failed: {}", e);
+            return;
+        };
+
+        if let Err(e) = stream.flush() {
+            error!("flush stream failed: {}", e);
+            return;
+        };
     }
 }

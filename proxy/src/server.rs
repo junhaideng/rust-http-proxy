@@ -1,4 +1,7 @@
 use std::net::TcpListener;
+use std::process;
+
+use log::error;
 
 use crate::banner;
 use crate::pool::ThreadPool;
@@ -51,7 +54,10 @@ impl Server {
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    self.pool.execute(stream).expect("execute failed");
+                    if let Err(e) = self.pool.execute(stream) {
+                        error!("pool execute failed: {}", e);
+                        continue;
+                    };
                 }
                 Err(e) => return Err(e.to_string()),
             }
@@ -61,6 +67,9 @@ impl Server {
 
     // 开启透明代理
     pub fn init_iptables(&self) {
-        init_iptables(&self.port).expect("init iptables failed, check your permissions！");
+        if let Err(e) = init_iptables(&self.port) {
+            println!("init iptables failed, due to: \n{}", e);
+            process::exit(-1);
+        };
     }
 }

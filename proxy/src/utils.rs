@@ -8,10 +8,13 @@ pub fn decode(string: &String) -> Result<(String, String), &str> {
         Ok(res) => res,
         Err(_) => return Err("decode authorization failed"),
     };
-    let auth: Vec<&str> = str::from_utf8(tmp)
-        .expect("convert authorization data failed")
-        .splitn(2, ':')
-        .collect();
+    let tmp = match str::from_utf8(tmp) {
+        Ok(r) => r,
+        Err(_) => {
+            return Err("convert authorization data failed");
+        }
+    };
+    let auth: Vec<&str> = tmp.splitn(2, ':').collect();
     if auth.len() == 2 {
         return Ok((String::from(auth[0]), String::from(auth[1])));
     }

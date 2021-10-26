@@ -64,7 +64,12 @@ impl Config {
             Ok(f) => f,
             Err(_e) => return Err("can not open file"),
         };
-        let config: Config = serde_yaml::from_reader(f).unwrap();
+        let config: Config = match serde_yaml::from_reader(f) {
+            Ok(r) => r,
+            Err(_) => {
+                return Err("deserialize config file failed");
+            }
+        };
         return Ok(config);
     }
 

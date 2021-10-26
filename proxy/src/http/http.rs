@@ -395,7 +395,10 @@ fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &s
     let mut header = HashMap::new();
 
     loop {
-        let size = stream.read(&mut buf).expect("read stream failed");
+        let size = match stream.read(&mut buf) {
+            Ok(s) => s,
+            Err(_) => return Err("read stream failed"),
+        };
         if size == 0 {
             break;
         }
@@ -405,7 +408,7 @@ fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &s
         }
 
         if state == State::Invalid {
-            panic!("http content not fits the protocol definition");
+            return Err("http content not fits the protocol definition");
         }
 
         // \r
@@ -457,7 +460,10 @@ pub fn parse_request(stream: &mut dyn Read) -> Result<Request, &str> {
 
     // 首先读取一行数据，里面是请求行或者响应行
     loop {
-        let size = stream.read(&mut buf).expect("read stream failed");
+        let size = match stream.read(&mut buf) {
+            Ok(s) => s,
+            Err(_) => return Err("read stream failed"),
+        };
         if size == 0 {
             break;
         }
@@ -535,8 +541,12 @@ pub fn parse_response(stream: &mut dyn Read) -> Result<Response, &str> {
         Err(_) => {
             return Err("parse failed");
         }
-    })
-    .expect("parse http response header failed");
+    });
+
+    let response_header = match response_header {
+        Ok(r) => r,
+        Err(_) => return Err("parse http response header failed"),
+    };
 
     let (header, body) = parse(stream)?;
 

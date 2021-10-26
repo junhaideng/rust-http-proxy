@@ -28,14 +28,13 @@ fn main() {
         )
         .arg(
             Arg::with_name("transparent")
-            
                 .short("t")
                 .long("transparent")
                 .help("set transparent proxy [true, false]")
                 .default_value("false"),
         )
         .get_matches();
-        
+
     let host = match app.value_of("host") {
         Some(host) => host.to_string(),
         None => "0.0.0.0".to_string(),
@@ -47,7 +46,13 @@ fn main() {
     };
 
     let size: usize = match app.value_of("pool_size") {
-        Some(size) => size.parse().expect("pool_size must be an integer"),
+        Some(size) => match size.parse() {
+            Ok(r) => r,
+            Err(_) => {
+                println!("pool_size must be an integer");
+                return;
+            }
+        },
         None => 4,
     };
 

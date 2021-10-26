@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 use std::net::TcpStream;
 use std::sync::{mpsc, Arc, Mutex};
 
@@ -74,9 +74,10 @@ impl Drop for ThreadPool {
         info!("Sending terminate message to all workers.");
 
         for _ in &mut self.workers {
-            self.sender
-                .send(Message::Terminate)
-                .expect("send message failed");
+            if let Err(e) = self.sender.send(Message::Terminate) {
+                println!("send message failed: {}", e);
+                error!("send message failed: {}", e);
+            }
         }
 
         info!("Shutting down all workers.");
@@ -85,7 +86,10 @@ impl Drop for ThreadPool {
             info!("Shutting down worker {}", worker.id);
 
             if let Some(thread) = worker.thread.take() {
-                thread.join().expect("thread join failed");
+                if let Err(_) = thread.join() {
+                    println!("thread join failed");
+                    error!("thread join failed");
+                };
             }
         }
     }
