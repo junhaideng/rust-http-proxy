@@ -3,8 +3,8 @@ use proxy::Server;
 
 fn main() {
     let app = App::new("rust proxy")
-        .version("1.0")
-        .about("simple http proxy")
+        .version("1.0.0")
+        .about("a simple http proxy using rust")
         .arg(
             Arg::with_name("host")
                 .short("h")
