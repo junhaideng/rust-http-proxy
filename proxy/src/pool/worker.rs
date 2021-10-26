@@ -166,7 +166,6 @@ impl Worker {
         for request in resp_chain.iter() {
             match request(&CFG, &res) {
                 FilterStatus::Reject => {
-                    println!("reject");
                     http::forbidden(stream);
                     return;
                 }

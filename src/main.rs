@@ -62,7 +62,6 @@ fn main() {
         },
         None => false,
     };
-    println!("{}", flag);
 
     let mut s = match Server::new(&host, &port, size) {
         Ok(server) => server,
