@@ -31,7 +31,7 @@ fn main() {
             
                 .short("t")
                 .long("transparent")
-                .help("set is transparent proxy [true, false]")
+                .help("set transparent proxy [true, false]")
                 .default_value("false"),
         )
         .get_matches();
