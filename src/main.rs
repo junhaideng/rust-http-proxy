@@ -26,8 +26,16 @@ fn main() {
                 .help("proxy server pool size")
                 .default_value("4"),
         )
+        .arg(
+            Arg::with_name("transparent")
+            
+                .short("t")
+                .long("transparent")
+                .help("set is transparent proxy [true, false]")
+                .default_value("false"),
+        )
         .get_matches();
-
+        
     let host = match app.value_of("host") {
         Some(host) => host.to_string(),
         None => "0.0.0.0".to_string(),
@@ -43,6 +51,19 @@ fn main() {
         None => 4,
     };
 
+    let flag = match app.value_of("transparent") {
+        Some(f) => match f {
+            "true" => true,
+            "false" => false,
+            _ => {
+                println!("非法的 transparent 参数: {}， 只能为 true 或者 false", f);
+                return;
+            }
+        },
+        None => false,
+    };
+    println!("{}", flag);
+
     let mut s = match Server::new(&host, &port, size) {
         Ok(server) => server,
         Err(e) => {
@@ -50,6 +71,11 @@ fn main() {
             return;
         }
     };
+
+    if flag {
+        s.init_iptables();
+    }
+
     if let Err(err) = s.run() {
         println!("{}", err)
     };
