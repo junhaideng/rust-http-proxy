@@ -25,7 +25,7 @@ pub fn init() {
     {
         Ok(r) => r,
         Err(e) => {
-            println!("build LogConfig failed: {}", e);
+            println!("build LogConfig failed: {:?}", e);
             process::exit(-1);
         }
     };
