@@ -331,9 +331,9 @@ impl Request {
         }
         match self.headers.get("Host") {
             Some(h) => {
-                let mut p = p.clone();
-                p.push_str(h);
-                return p;
+                let mut res = h.clone();
+                res.push_str(p);
+                return res;
             }
             None => {
                 return format!("unknown path: {}", p);
