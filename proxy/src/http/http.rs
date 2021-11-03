@@ -323,6 +323,23 @@ impl Request {
 
         buf
     }
+
+    pub fn path(&self) -> String {
+        let p = &self.path;
+        if p.starts_with("http") {
+            return p.clone();
+        }
+        match self.headers.get("Host") {
+            Some(h) => {
+                let mut p = p.clone();
+                p.push_str(h);
+                return p;
+            }
+            None => {
+                return format!("unknown path: {}", p);
+            }
+        }
+    }
 }
 
 /// HTTP 响应

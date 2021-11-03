@@ -100,7 +100,6 @@ impl Config {
 
 #[test]
 fn parse_config_test() {
-    // config.yml 在根目录
     assert_eq!(Config::parse("test/not_exist.yml").is_err(), true);
 
     let config = Config::parse("test/config.yml");

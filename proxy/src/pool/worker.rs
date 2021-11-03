@@ -143,7 +143,10 @@ impl Worker {
                     client = Some(stream);
                     break;
                 }
-                Err(_) => continue,
+                Err(err) => {
+                    info!("connect to socket failed: {}, try another", err);
+                    continue;
+                }
             };
         }
 
@@ -188,7 +191,11 @@ impl Worker {
             }
         }
 
-        info!("user `{}` visited  {}", auth.0, req.path);
+        if CFG.server.auth.enable {
+            info!("user `{}` visited  {}", auth.0, req.path());
+        } else {
+            info!("visited {}", req.path());
+        }
 
         if let Err(e) = stream.write(&res.as_bytes()) {
             error!("wirte stream failed: {}", e);
