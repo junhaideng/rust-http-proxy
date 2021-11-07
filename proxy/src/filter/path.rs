@@ -1,13 +1,23 @@
 //! 请求路径过滤
 
-use crate::{http, Config};
-
 use super::FilterStatus;
+use crate::{http, Config};
+use log::error;
+use regex::Regex;
 
 pub fn filter_request_path(config: &Config, request: &http::Request) -> FilterStatus {
-    let path = &config.deny.request.line.path;
-    if path.contains(&request.path) {
-        return FilterStatus::Reject;
+    let paths = &config.deny.request.line.path;
+    for path in paths.iter() {
+        let reg = match Regex::new(path) {
+            Ok(e) => e,
+            Err(e) => {
+                error!("Regex error: {}", &e);
+                return FilterStatus::Reject;
+            }
+        };
+        if reg.is_match(&request.path) {
+            return FilterStatus::Reject;
+        }
     }
     FilterStatus::Forward
 }
@@ -24,4 +34,15 @@ fn filter_request_path_test() {
     );
     request.path = "/login".to_string();
     assert_eq!(filter_request_path(&config, &request), FilterStatus::Reject);
+
+    config.deny.request.line.path.push("/admin/.*".to_string());
+    assert_eq!(filter_request_path(&config, &request), FilterStatus::Reject);
+    request.path = "/admin/user_id".to_string();
+    assert_eq!(filter_request_path(&config, &request), FilterStatus::Reject);
+
+    request.path = "/admin_suffix".to_string();
+    assert_eq!(
+        filter_request_path(&config, &request),
+        FilterStatus::Forward
+    );
 }
