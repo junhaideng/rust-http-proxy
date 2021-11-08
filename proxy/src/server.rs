@@ -68,7 +68,7 @@ impl Server {
     // 开启透明代理
     pub fn init_iptables(&self) {
         if let Err(e) = init_iptables(&self.port) {
-            println!("init iptables failed, due to: \n{}", e);
+            println!("init iptables failed, due to: \n{:?}", e);
             process::exit(-1);
         };
     }
