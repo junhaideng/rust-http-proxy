@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -169,7 +169,7 @@ impl Worker {
             error!("flush data failed: {}", e);
             return;
         }
-
+        let mut client = BufReader::new(client);
         // 解析收到的 HTTP 响应
         let mut res = match http::parse_response(&mut client) {
             Ok(res) => res,

@@ -3,7 +3,8 @@
 use log::error;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
+
 use std::str;
 
 /// HTTP 方法
@@ -401,7 +402,7 @@ impl Response {
 }
 
 /// 解析 HTTP 协议内容
-fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &str> {
+fn parse(stream: &mut dyn BufRead) -> Result<(HashMap<String, String>, Vec<u8>), &'static str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 数据保存
@@ -469,6 +470,8 @@ fn parse(stream: &mut dyn Read) -> Result<(HashMap<String, String>, Vec<u8>), &s
 }
 
 pub fn parse_request(stream: &mut dyn Read) -> Result<Request, &str> {
+    let mut stream = BufReader::new(stream);
+
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 保存每一行的内容，会重复利用
@@ -511,7 +514,7 @@ pub fn parse_request(stream: &mut dyn Read) -> Result<Request, &str> {
         }
     };
 
-    let (header, body) = parse(stream)?;
+    let (header, body) = parse(&mut stream)?;
 
     Ok(Request {
         method: request_header.method,
@@ -523,7 +526,7 @@ pub fn parse_request(stream: &mut dyn Read) -> Result<Request, &str> {
     })
 }
 
-pub fn parse_response(stream: &mut dyn Read) -> Result<Response, &str> {
+pub fn parse_response(stream: &mut dyn BufRead) -> Result<Response, &str> {
     // 每次读取一个字节
     let mut buf = [0; 1];
     // 保存每一行的内容，会重复利用
