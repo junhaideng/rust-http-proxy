@@ -7,6 +7,7 @@ on:
       - "**.rs "
       - "**/Makefile"
       - "**/Cargo.toml"
+      - ".github/workflows/**"
 
 env:
   CARGO_TERM_COLOR: always
