@@ -327,6 +327,9 @@ impl Request {
 
     pub fn path(&self) -> String {
         let p = &self.path;
+        if self.method == Method::CONNECT {
+            return p.clone();
+        }
         if p.starts_with("http") {
             return p.clone();
         }

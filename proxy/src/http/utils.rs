@@ -7,6 +7,7 @@ static HTTP_FORBIDDEN: &[u8] = "HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\
 static HTTP_PROXY_AUTH: &[u8] =
     "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic\r\n\r\n".as_bytes();
 static HTTP_NOT_SUPPORT: &[u8] = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 31\r\n\r\nProxy do not support https Now".as_bytes();
+static HTTP_STATUS_OK: &[u8] = "HTTP/1.1 200 OK\r\n\r\n".as_bytes();
 
 pub fn unauthorized(stream: &mut TcpStream) {
     if let Err(err) = stream.write(HTTP_AUTH) {
@@ -41,5 +42,11 @@ pub fn not_support_https(stream: &mut TcpStream) {
     }
     if let Err(err) = stream.shutdown(Shutdown::Both) {
         error!("shutdown stream failed: {}", err);
+    }
+}
+
+pub fn http_status_ok(stream: &mut TcpStream){
+    if let Err(err) = stream.write(HTTP_STATUS_OK) {
+        error!("write stream failed: {}", err);
     }
 }
