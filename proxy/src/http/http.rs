@@ -341,6 +341,12 @@ impl Request {
             }
         }
     }
+
+    pub fn string(self) -> String {
+      let mut res = String::new();
+      res += &format!("{} {} {} \n {:?}", self.method, self.path, self.version, self.headers);
+      res
+    }
 }
 
 /// HTTP 响应
@@ -398,6 +404,12 @@ impl Response {
 
         self.cache = buf.clone();
         buf
+    }
+
+    pub fn string(self) -> String {
+      let mut res = String::new();
+      res += &format!("{} {} {} \n {:?}", self.version, self.code, self.text, self.headers);
+      res
     }
 }
 

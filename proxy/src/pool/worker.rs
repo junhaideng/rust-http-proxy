@@ -73,7 +73,7 @@ impl Worker {
         for request in req_chain.iter() {
             match request(&CFG, &req) {
                 FilterStatus::Reject => {
-                    info!("reject {:?}", &req);
+                    info!("reject Request {:?}", req.string());
                     http::forbidden(stream);
                     return;
                 }
@@ -183,7 +183,7 @@ impl Worker {
         for request in resp_chain.iter() {
             match request(&CFG, &res) {
                 FilterStatus::Reject => {
-                    info!("reject response: {:?}", &res);
+                    info!("reject Response: {:?}", res.string());
                     http::forbidden(stream);
                     return;
                 }
