@@ -125,7 +125,6 @@ impl Worker {
                 }
             }
         }
-        println!("{:?}", req);
         if !host.contains(":") {
             host = host + ":80";
         }
@@ -180,15 +179,13 @@ impl Worker {
                 for (mut reader, mut writer) in pipes.iter() {
                     match io::copy(&mut reader, &mut writer) {
                         Ok(s) => {
-                            // println!("{}", &s);
                             if s == 0 {
-                                println!("close");
                                 return;
                             }
                         }
                         Err(e) => {
                             if e.kind() != io::ErrorKind::WouldBlock {
-                                println!("{}", &e);
+                                error!("io copy failed: {}", e);
                                 return;
                             }
                             continue;
