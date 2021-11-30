@@ -1,7 +1,7 @@
-use std::io::{BufReader, Read, Write};
+use std::io::{self, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread::{self, sleep};
+use std::thread::{self};
 use std::time::Duration;
 
 use crate::config::Config;
@@ -10,13 +10,11 @@ use crate::http::Method;
 use crate::{http, utils};
 
 use super::message::Message;
-use log::{error, info, warn};
+use log::{error, info};
 
 lazy_static! {
     static ref CFG: Config = Config::parse("config.yml").expect("parse config.yml failed");
 }
-
-const MAX_BUF_SIZE: usize = 1024;
 
 pub struct Worker {
     pub id: usize,
@@ -55,31 +53,6 @@ impl Worker {
             id,
             thread: Some(thread),
         }
-    }
-
-    fn copy(reader: Arc<Mutex<TcpStream>>, writer: Arc<Mutex<TcpStream>>, desc: String) {
-      
-        thread::spawn(move || {
-            let mut r = reader.lock().unwrap();
-            let mut w = writer.lock().unwrap();
-            let mut buf: [u8; MAX_BUF_SIZE] = [0; MAX_BUF_SIZE];
-            loop {
-                match r.read(&mut buf) {
-                  Ok(size) => {
-                      println!("{}", desc);
-                      println!("read: {}", size);
-                      if size == 0 {
-                        break;
-                      }
-                        w.write(&buf[0..size]).unwrap();
-                    }
-                    Err(err) => {
-                        println!("{}", err);
-                        break;
-                    }
-                }
-            }
-        });
     }
 
     // 处理 HTTP 连接
@@ -152,6 +125,7 @@ impl Worker {
                 }
             }
         }
+        println!("{:?}", req);
         if !host.contains(":") {
             host = host + ":80";
         }
@@ -191,14 +165,37 @@ impl Worker {
         // 进行 tunnel
         if req.method == Method::CONNECT {
             http::http_status_ok(&mut stream);
-            let s = Arc::new(Mutex::new(stream));
-            let c = Arc::new(Mutex::new(client));
 
-            Self::copy(s.clone(), c.clone(), String::from("client->server"));
-            Self::copy(c.clone(), s.clone(), String::from("server->client"));
-            
-            sleep(Duration::from_secs(10));
-            return;
+            if let Err(e) = stream.set_nonblocking(true) {
+                error!("set client stream nonblocking falied: {}", e);
+                return;
+            };
+
+            if let Err(e) = client.set_nonblocking(true) {
+                error!("set client stream nonblocking failed: {}", e);
+            };
+            let pipes = [(&stream, &client), (&client, &stream)];
+
+            loop {
+                for (mut reader, mut writer) in pipes.iter() {
+                    match io::copy(&mut reader, &mut writer) {
+                        Ok(s) => {
+                            // println!("{}", &s);
+                            if s == 0 {
+                                println!("close");
+                                return;
+                            }
+                        }
+                        Err(e) => {
+                            if e.kind() != io::ErrorKind::WouldBlock {
+                                println!("{}", &e);
+                                return;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
         }
 
         // 将客户端发送过来的请求发送到服务端
