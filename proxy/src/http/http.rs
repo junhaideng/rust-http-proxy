@@ -327,6 +327,9 @@ impl Request {
 
     pub fn path(&self) -> String {
         let p = &self.path;
+        if self.method == Method::CONNECT {
+            return p.clone();
+        }
         if p.starts_with("http") {
             return p.clone();
         }
@@ -343,9 +346,12 @@ impl Request {
     }
 
     pub fn string(self) -> String {
-      let mut res = String::new();
-      res += &format!("{} {} {} \n {:?}", self.method, self.path, self.version, self.headers);
-      res
+        let mut res = String::new();
+        res += &format!(
+            "{} {} {} \n {:?}",
+            self.method, self.path, self.version, self.headers
+        );
+        res
     }
 }
 
@@ -407,9 +413,12 @@ impl Response {
     }
 
     pub fn string(self) -> String {
-      let mut res = String::new();
-      res += &format!("{} {} {} \n {:?}", self.version, self.code, self.text, self.headers);
-      res
+        let mut res = String::new();
+        res += &format!(
+            "{} {} {} \n {:?}",
+            self.version, self.code, self.text, self.headers
+        );
+        res
     }
 }
 

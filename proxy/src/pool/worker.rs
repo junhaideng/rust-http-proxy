@@ -1,15 +1,16 @@
-use std::io::{BufReader, Write};
+use std::io::{self, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
+use std::thread::{self};
 use std::time::Duration;
 
 use crate::config::Config;
 use crate::filter::{FilterRequest, FilterResponse, FilterStatus};
+use crate::http::Method;
 use crate::{http, utils};
 
 use super::message::Message;
-use log::{error, info, warn};
+use log::{error, info};
 
 lazy_static! {
     static ref CFG: Config = Config::parse("config.yml").expect("parse config.yml failed");
@@ -36,9 +37,9 @@ impl Worker {
                 .expect("receive message failed");
 
             match message {
-                Message::NewStream(mut stream) => {
+                Message::NewStream(stream) => {
                     // 处理http请求流数据
-                    Self::handle_stream(&mut stream, req_chain.clone(), resp_chain.clone());
+                    Self::handle_stream(stream, req_chain.clone(), resp_chain.clone());
                 }
                 // 结束
                 Message::Terminate => {
@@ -56,12 +57,12 @@ impl Worker {
 
     // 处理 HTTP 连接
     fn handle_stream(
-        stream: &mut TcpStream,
+        mut stream: TcpStream,
         req_chain: Arc<Vec<FilterRequest>>,
         resp_chain: Arc<Vec<FilterResponse>>,
     ) {
         // 读取内容，解析协议
-        let mut req = match http::parse_request(stream) {
+        let mut req = match http::parse_request(&mut stream) {
             Ok(req) => req,
             Err(err) => {
                 error!("parser request failed: {}", err);
@@ -74,7 +75,7 @@ impl Worker {
             match request(&CFG, &req) {
                 FilterStatus::Reject => {
                     info!("reject Request {:?}", req.string());
-                    http::forbidden(stream);
+                    http::forbidden(&mut stream);
                     return;
                 }
                 FilterStatus::Forward => {}
@@ -89,12 +90,13 @@ impl Worker {
                 return;
             }
         };
-        // 目前不支持HTTPS
-        if host.contains("443") || req.path.contains("https") {
-            warn!("do not support https: {}", req.path);
-            http::not_support_https(stream);
-            return;
-        }
+
+        // // 目前不支持HTTPS
+        // if host.contains("443") || req.path.contains("https") {
+        //     warn!("do not support https: {}", req.path);
+        //     http::not_support_https(stream);
+        //     return;
+        // }
 
         let mut auth = (String::new(), String::new());
         if CFG.server.auth.enable {
@@ -112,17 +114,18 @@ impl Worker {
                     if auth.0.eq(&CFG.server.auth.username) && auth.1.eq(&CFG.server.auth.password)
                     {
                     } else {
-                        http::proxy_auth(stream);
+                        http::proxy_auth(&mut stream);
                         return;
                     }
                 }
                 None => {
                     // 要求输入用户名、密码
-                    http::proxy_auth(stream);
+                    http::proxy_auth(&mut stream);
                     return;
                 }
             }
         }
+        println!("{:?}", req);
         if !host.contains(":") {
             host = host + ":80";
         }
@@ -159,6 +162,42 @@ impl Worker {
             }
         };
 
+        // 进行 tunnel
+        if req.method == Method::CONNECT {
+            http::http_status_ok(&mut stream);
+
+            if let Err(e) = stream.set_nonblocking(true) {
+                error!("set client stream nonblocking falied: {}", e);
+                return;
+            };
+
+            if let Err(e) = client.set_nonblocking(true) {
+                error!("set client stream nonblocking failed: {}", e);
+            };
+            let pipes = [(&stream, &client), (&client, &stream)];
+
+            loop {
+                for (mut reader, mut writer) in pipes.iter() {
+                    match io::copy(&mut reader, &mut writer) {
+                        Ok(s) => {
+                            // println!("{}", &s);
+                            if s == 0 {
+                                println!("close");
+                                return;
+                            }
+                        }
+                        Err(e) => {
+                            if e.kind() != io::ErrorKind::WouldBlock {
+                                println!("{}", &e);
+                                return;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
         // 将客户端发送过来的请求发送到服务端
         if let Err(e) = client.write(&req.as_bytes()) {
             error!("send http request failed: {}", e);
@@ -184,7 +223,7 @@ impl Worker {
             match request(&CFG, &res) {
                 FilterStatus::Reject => {
                     info!("reject Response: {:?}", res.string());
-                    http::forbidden(stream);
+                    http::forbidden(&mut stream);
                     return;
                 }
                 FilterStatus::Forward => {}
