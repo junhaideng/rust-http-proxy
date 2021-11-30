@@ -24,7 +24,7 @@ fn main() {
                 .short("s")
                 .long("pool_size")
                 .help("proxy server pool size")
-                .default_value("4"),
+                .default_value("10"),
         )
         .arg(
             Arg::with_name("transparent")

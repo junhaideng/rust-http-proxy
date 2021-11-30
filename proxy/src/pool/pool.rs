@@ -29,10 +29,7 @@ impl ThreadPool {
 
         // 创建 worker
         for id in 0..size {
-            workers.push(Worker::new(
-                id,
-                Arc::clone(&receiver),
-            ));
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
         ThreadPool {

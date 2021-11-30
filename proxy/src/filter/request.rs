@@ -45,7 +45,7 @@ pub fn filter_request(request_config: &Vec<Request>, request: &http::Request) ->
 
 #[test]
 fn filter_request_test() {
-    use crate::config::{RequestDeny, RequestLine, Request};
+    use crate::config::{Request, RequestDeny, RequestLine};
     use std::collections::HashMap;
 
     let mut request_config = Vec::new();
@@ -95,8 +95,14 @@ fn filter_request_test() {
 
     // 头部全部包含, 方法正确，和路径不对
     request.method = http::Method::POST;
-    assert_eq!(filter_request(&request_config, &request), FilterStatus::Forward);
+    assert_eq!(
+        filter_request(&request_config, &request),
+        FilterStatus::Forward
+    );
 
     request.path = "/login".to_string();
-    assert_eq!(filter_request(&request_config, &request), FilterStatus::Reject);
+    assert_eq!(
+        filter_request(&request_config, &request),
+        FilterStatus::Reject
+    );
 }

@@ -7,7 +7,7 @@ use std::time::Duration;
 use crate::config::Config;
 use crate::filter::request::filter_request;
 use crate::filter::response::filter_response;
-use crate::filter::{ FilterStatus};
+use crate::filter::FilterStatus;
 use crate::http::Method;
 use crate::{http, utils};
 
@@ -25,10 +25,7 @@ pub struct Worker {
 
 impl Worker {
     // 创建 worker 接收数据进行处理
-    pub fn new(
-        id: usize,
-        receiver: Arc<Mutex<mpsc::Receiver<Message>>>,
-    ) -> Worker {
+    pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
         let thread = thread::spawn(move || loop {
             let message = receiver
                 .lock()
@@ -56,9 +53,7 @@ impl Worker {
     }
 
     // 处理 HTTP 连接
-    fn handle_stream(
-        mut stream: TcpStream,
-    ) {
+    fn handle_stream(mut stream: TcpStream) {
         // 读取内容，解析协议
         let mut req = match http::parse_request(&mut stream) {
             Ok(req) => req,
@@ -68,17 +63,6 @@ impl Worker {
             }
         };
 
-        // 过滤请求
-
-        match filter_request(&CFG.deny.request, &req) {
-            FilterStatus::Reject => {
-                info!("reject Request {:?}", req.string());
-                http::forbidden(&mut stream);
-                return;
-            }
-            FilterStatus::Forward => {}
-        }
-
         // 找到host
         let mut host = match req.headers.get("Host") {
             Some(s) => s.clone(),
@@ -87,13 +71,6 @@ impl Worker {
                 return;
             }
         };
-
-        // // 目前不支持HTTPS
-        // if host.contains("443") || req.path.contains("https") {
-        //     warn!("do not support https: {}", req.path);
-        //     http::not_support_https(stream);
-        //     return;
-        // }
 
         let mut auth = (String::new(), String::new());
         if CFG.server.auth.enable {
@@ -158,8 +135,9 @@ impl Worker {
             }
         };
 
-        // 进行 tunnel
+        // https 进行 tunnel
         if req.method == Method::CONNECT {
+            info!("{} visit {}", auth.0, req.path());
             http::http_status_ok(&mut stream);
 
             if let Err(e) = stream.set_nonblocking(true) {
@@ -192,6 +170,16 @@ impl Worker {
             }
         }
 
+        // 过滤请求
+        match filter_request(&CFG.deny.request, &req) {
+            FilterStatus::Reject => {
+                info!("reject Request {:?}", req.string());
+                http::forbidden(&mut stream);
+                return;
+            }
+            FilterStatus::Forward => {}
+        }
+
         // 将客户端发送过来的请求发送到服务端
         if let Err(e) = client.write(&req.as_bytes()) {
             error!("send http request failed: {}", e);
@@ -202,7 +190,9 @@ impl Worker {
             error!("flush data failed: {}", e);
             return;
         }
+
         let mut client = BufReader::new(client);
+
         // 解析收到的 HTTP 响应
         let mut res = match http::parse_response(&mut client) {
             Ok(res) => res,
