@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
     paths:
-      - "**.rs "
+      - "**.rs"
       - "**/Makefile"
       - "**/Cargo.toml"
       - ".github/workflows/**"
