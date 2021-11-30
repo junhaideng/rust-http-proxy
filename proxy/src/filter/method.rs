@@ -1,33 +1,24 @@
 //! 请求方法过滤
 
-use crate::{http, Config};
+use crate::http;
 
-use super::FilterStatus;
-
-pub fn filter_request_method(config: &Config, request: &http::Request) -> FilterStatus {
-    let methods = &config.deny.request.line.methods;
+// 如果请求中的方法被 methods 中含有,则应该过滤掉
+pub fn filter_request_method(methods: &Vec<String>, request: &http::Request) -> bool {
     let req_method = request.method.to_string();
-
     if methods.contains(&req_method) {
-        return FilterStatus::Reject;
+        return true;
     }
-    FilterStatus::Forward
+    false
 }
 
 #[test]
 fn filter_request_method_test() {
-    let mut config = Config::default();
+    let mut methods = Vec::new();
     let mut request = http::Request::default();
 
-    config.deny.request.line.methods.push("POST".to_string());
-    assert_eq!(
-        filter_request_method(&config, &request),
-        FilterStatus::Forward
-    );
+    methods.push("POST".to_string());
+    assert!(!filter_request_method(&methods, &request),);
 
     request.method = http::Method::POST;
-    assert_eq!(
-        filter_request_method(&config, &request),
-        FilterStatus::Reject
-    );
+    assert!(filter_request_method(&methods, &request));
 }

@@ -1,0 +1,9 @@
+---
+server:
+  auth:
+    enable: false
+    username: ""
+    password: ""
+deny:
+  request: []
+  response: []

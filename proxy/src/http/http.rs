@@ -556,6 +556,8 @@ pub fn parse_response(stream: &mut dyn BufRead) -> Result<Response, &str> {
 
     // 首先读取一行数据，里面是请求行或者响应行
     loop {
+        println!("{:?}", String::from_utf8(writer.clone()));
+
         let size = match stream.read(&mut buf) {
             Ok(s) => s,
             Err(_err) => {
@@ -583,7 +585,7 @@ pub fn parse_response(stream: &mut dyn BufRead) -> Result<Response, &str> {
             return Err("parse failed");
         }
     });
-
+    println!("{:?}", response_header);
     let response_header = match response_header {
         Ok(r) => r,
         Err(_) => return Err("parse http response header failed"),

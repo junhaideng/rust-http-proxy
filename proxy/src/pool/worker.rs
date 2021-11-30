@@ -5,7 +5,9 @@ use std::thread::{self};
 use std::time::Duration;
 
 use crate::config::Config;
-use crate::filter::{FilterRequest, FilterResponse, FilterStatus};
+use crate::filter::request::filter_request;
+use crate::filter::response::filter_response;
+use crate::filter::{ FilterStatus};
 use crate::http::Method;
 use crate::{http, utils};
 
@@ -26,8 +28,6 @@ impl Worker {
     pub fn new(
         id: usize,
         receiver: Arc<Mutex<mpsc::Receiver<Message>>>,
-        req_chain: Arc<Vec<FilterRequest>>,
-        resp_chain: Arc<Vec<FilterResponse>>,
     ) -> Worker {
         let thread = thread::spawn(move || loop {
             let message = receiver
@@ -39,7 +39,7 @@ impl Worker {
             match message {
                 Message::NewStream(stream) => {
                     // 处理http请求流数据
-                    Self::handle_stream(stream, req_chain.clone(), resp_chain.clone());
+                    Self::handle_stream(stream);
                 }
                 // 结束
                 Message::Terminate => {
@@ -58,8 +58,6 @@ impl Worker {
     // 处理 HTTP 连接
     fn handle_stream(
         mut stream: TcpStream,
-        req_chain: Arc<Vec<FilterRequest>>,
-        resp_chain: Arc<Vec<FilterResponse>>,
     ) {
         // 读取内容，解析协议
         let mut req = match http::parse_request(&mut stream) {
@@ -71,15 +69,14 @@ impl Worker {
         };
 
         // 过滤请求
-        for request in req_chain.iter() {
-            match request(&CFG, &req) {
-                FilterStatus::Reject => {
-                    info!("reject Request {:?}", req.string());
-                    http::forbidden(&mut stream);
-                    return;
-                }
-                FilterStatus::Forward => {}
+
+        match filter_request(&CFG.deny.request, &req) {
+            FilterStatus::Reject => {
+                info!("reject Request {:?}", req.string());
+                http::forbidden(&mut stream);
+                return;
             }
+            FilterStatus::Forward => {}
         }
 
         // 找到host
@@ -215,16 +212,14 @@ impl Worker {
             }
         };
 
-        // filter request
-        for request in resp_chain.iter() {
-            match request(&CFG, &res) {
-                FilterStatus::Reject => {
-                    info!("reject Response: {:?}", res.string());
-                    http::forbidden(&mut stream);
-                    return;
-                }
-                FilterStatus::Forward => {}
+        // filter response
+        match filter_response(&CFG.deny.response, &res) {
+            FilterStatus::Reject => {
+                info!("reject Response: {:?}", res.string());
+                http::forbidden(&mut stream);
+                return;
             }
+            FilterStatus::Forward => {}
         }
 
         if CFG.server.auth.enable {

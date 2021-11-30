@@ -2,13 +2,6 @@ use log::{error, info};
 use std::net::TcpStream;
 use std::sync::{mpsc, Arc, Mutex};
 
-use crate::filter::header::{filter_request, filter_response};
-use crate::filter::method::filter_request_method;
-use crate::filter::path::filter_request_path;
-use crate::filter::FilterStatus;
-use crate::http;
-use crate::Config;
-
 use super::message::Message;
 use super::worker::Worker;
 
@@ -32,26 +25,13 @@ impl ThreadPool {
         let receiver = Arc::new(Mutex::new(receiver));
 
         // 过滤机制
-        let request_filter_chain = vec![
-            filter_request as fn(&Config, &http::Request) -> FilterStatus,
-            filter_request_path,
-            filter_request_method,
-        ];
-
-        let response_filter_chain =
-            vec![filter_response as fn(&Config, &http::Response) -> FilterStatus];
-
         let mut workers = Vec::with_capacity(size);
 
-        let req_chain = Arc::new(request_filter_chain);
-        let res_chain = Arc::new(response_filter_chain);
         // 创建 worker
         for id in 0..size {
             workers.push(Worker::new(
                 id,
                 Arc::clone(&receiver),
-                Arc::clone(&req_chain),
-                Arc::clone(&res_chain),
             ));
         }
 

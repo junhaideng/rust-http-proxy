@@ -1,23 +1,30 @@
 server:
     auth: 
-        enable: true
+        enable: true 
         username: rust 
         password: proxy
 
 # 需要被过滤的内容
 deny:
     request:
-       line: # 请求行中的数据
-           methods: [POST, PUT]  # 请求方法
-           path:  # 请求路径
-           - /login
-       headers:  # 请求头部
-          - 
-            key: "Content-Type"
-            value: "application/json"
+      - 
+        name: deny_1 
+        rule:  
+          line: # 请求行中的数据
+            methods: [POST, PUT]  # 请求方法
+            path:  # 请求路径
+              - /login
+          headers:  # 请求头部
+            - 
+              key: "Content-Type"
+              value: "application/json"
+      
         
     response: # 响应中的数据过滤，暂只对请求头部信息进行过滤
-        headers:
-          - 
-            key: "Content-Type"
-            value: "pdf"
+        -
+          name: deny
+          rule: 
+            headers:
+              - 
+                key: "Content-Type"
+                value: "pdf"

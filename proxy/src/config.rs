@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fs::{self, File};
 
 use serde::{Deserialize, Serialize};
+use serde_json::{self, Result as JsonResult};
 use serde_yaml;
 
 const FILENAME: &str = "config.yml";
@@ -30,8 +31,21 @@ pub struct Auth {
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct DenyConfig {
-    pub request: RequestDeny,
-    pub response: ResponseDeny,
+    #[serde(default)]
+    pub request: Vec<Request>,
+    pub response: Vec<Response>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct Request {
+    pub name: String,
+    pub rule: RequestDeny,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct Response {
+    pub name: String,
+    pub rule: ResponseDeny,
 }
 
 #[derive(Default, Serialize, Deserialize, Debug)]
@@ -66,7 +80,8 @@ impl Config {
         };
         let config: Config = match serde_yaml::from_reader(f) {
             Ok(r) => r,
-            Err(_) => {
+            Err(e) => {
+                println!("{}", &e);
                 return Err("deserialize config file failed");
             }
         };
@@ -96,17 +111,24 @@ impl Config {
 
         Ok(default_config)
     }
+
+    pub fn to_json(&self) -> JsonResult<String> {
+        serde_json::to_string(self)
+    }
 }
 
 #[test]
 fn parse_config_test() {
     assert_eq!(Config::parse("test/not_exist.yml").is_err(), true);
 
+    assert_eq!(Config::generate_default().is_err(), false);
+
     let config = Config::parse("test/config.yml");
+    println!("{:?}", &config);
     assert_eq!(config.is_ok(), true);
+
     let config = config.unwrap();
     assert!(config.server.auth.enable);
     assert_eq!(config.server.auth.username, "rust");
     assert_eq!(config.server.auth.password, "proxy");
-    assert!(&config.deny.request.headers.len() > &0);
 }

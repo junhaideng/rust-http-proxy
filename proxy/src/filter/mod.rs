@@ -1,9 +1,11 @@
 use crate::config::Config;
 use crate::http;
 
-pub mod header;
-pub mod method;
-pub mod path;
+mod header;
+mod method;
+mod path;
+pub mod request;
+pub mod response;
 
 /// 过滤状态
 ///
