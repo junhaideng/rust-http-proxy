@@ -74,7 +74,7 @@ deny:
   "deny": {
     "request": [
       {
-        "name": "deny_1",
+        "name": "request_deny_1",
         "rule": {
           "line": {
             "methods": ["POST", "PUT"],
@@ -91,7 +91,7 @@ deny:
     ],
     "response": [
       {
-        "name": "deny",
+        "name": "response_deny_1",
         "rule": {
           "headers": [
             {
