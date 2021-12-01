@@ -1,23 +1,60 @@
 server:
     auth: 
-        enable: true 
+        enable: false
         username: rust 
         password: proxy
 
 # 需要被过滤的内容
 deny:
     request:
-       line: # 请求行中的数据
-           methods: [POST, PUT]  # 请求方法
-           path:  # 请求路径
-           - /login
-       headers:  # 请求头部
-          - 
-            key: "Content-Type"
-            value: "application/json"
+      - 
+        name: request_deny_1 
+        rule:  
+          line: # 请求行中的数据
+            methods: [POST, PUT]  # 请求方法
+            path:  # 请求路径
+              - /login
+          headers:  # 请求头部
+            - 
+              key: "Content-Type"
+              value: "application/json"
+            -
+              key: "test"
+              value: "test"
+
+              
+      - 
+        name: request_deny_2
+        rule:  
+          line: # 请求行中的数据
+            methods: [GET]  # 请求方法
+            path:  # 请求路径
+              - /cookies
+          headers:  # 请求头部
+            - 
+              key: "Content-Type"
+              value: "application/json"
+            -
+              key: "Host"
+              value: "httpbin.org"
+      
         
     response: # 响应中的数据过滤，暂只对请求头部信息进行过滤
-        headers:
-          - 
-            key: "Content-Type"
-            value: "pdf"
+        -
+          name: response_deny_1
+          rule: 
+            headers:
+              - 
+                key: "Content-Type"
+                value: "application/json"
+              -
+                key: "Access-Control-Allow-Credentials"
+                value: "true"
+        -
+          name: response_deny_2
+          rule: 
+            headers:
+              - 
+                key: "Content-Type"
+                value: "pdf"
+
